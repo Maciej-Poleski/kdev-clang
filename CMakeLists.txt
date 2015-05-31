@@ -30,6 +30,10 @@ set_package_properties(Clang PROPERTIES
     PURPOSE "LibClang is a high level C interface to clang"
     URL "http://clang.llvm.org/")
 
+if(LLVM_VERSION MATCHES "^3\\.6\\..*$") # expected version 3.6.*
+    set(BUILD_REFACTORINGS ON)
+endif()
+
 add_definitions(${LLVM_CFLAGS})
 include_directories(
     ${CLANG_INCLUDE_DIR}
@@ -61,6 +65,11 @@ add_subdirectory(codecompletion)
 add_subdirectory(codegen)
 add_subdirectory(util)
 add_subdirectory(tests)
+
+if(${BUILD_REFACTORINGS})
+    add_definitions(-DBUILD_REFACTORINGS)
+    add_subdirectory(refactoring)
+endif()
 
 set(kdevclangsupport_SRCS
     clangparsejob.cpp
