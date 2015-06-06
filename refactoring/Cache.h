@@ -19,38 +19,38 @@
     Boston, MA 02110-1301, USA.
 */
 
-#ifndef KDEV_CLANG_UTILS_H
-#define KDEV_CLANG_UTILS_H
+#ifndef KDEV_CLANG_CACHE_H
+#define KDEV_CLANG_CACHE_H
 
 // C++ std
+#include <string>
 #include <memory>
 #include <unordered_map>
 
 // LLVM
-#include <clang/Tooling/CompilationDatabase.h>
+#include <llvm/ADT/StringMap.h>
 #include <clang/Tooling/Tooling.h>
-#include <clang/Tooling/Core/Replacement.h>
 
-// KDevelop
-#include <language/codegen/documentchangeset.h>
+/**
+ * Implementation of documents cache for use with libTooling
+ */
+class Cache
+{
+public:
+    Cache(std::unordered_map<std::string, std::string> &&data);
 
-// refactoring
-#include "Cache.h"
+    bool containsFile(llvm::StringRef name) const;
+    const std::string& getFileContent(llvm::StringRef name) const;
 
-std::unique_ptr<clang::tooling::CompilationDatabase> makeCompilationDatabaseFromCMake(
-        std::string buildPath,
-        std::string &errorMessage
-);
+    void updateFileContent(std::string &&name, std::string &&content);
+    void updateFileContent(const std::string &name, std::string &&content);
+    void removeFile(const std::string &name);
 
-clang::tooling::ClangTool makeClangTool(
-        const clang::tooling::CompilationDatabase &database,
-        const std::vector<std::string>& sources
-);
+    void makeClangToolCacheAware(clang::tooling::ClangTool &clangTool);
 
-KDevelop::DocumentChangeSet toDocumentChangeSet(
-        const clang::tooling::Replacements &replacements,
-        const Cache &cache,
-        const clang::FileManager &fileManager
-);
+private:
+    llvm::StringMap<std::unique_ptr<std::pair<std::string, std::string>>> _data;
+};
 
-#endif //KDEV_CLANG_UTILS_H
+
+#endif //KDEV_CLANG_CACHE_H

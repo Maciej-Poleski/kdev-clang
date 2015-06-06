@@ -2,6 +2,7 @@
 set(SRCS
     interface.cpp
     utils.cpp
+    Cache.cpp
 )
 
 # static version for standalone executable
@@ -23,10 +24,14 @@ set_target_properties(kdevclangrefactor PROPERTIES
 # also need static version here?
 target_link_libraries(kdevclangrefactor
 LINK_PRIVATE
-    KDev::Util  # This will be modified later
+    KDev::Util
+    KDev::Serialization
+    KDev::Language
     KF5::TextEditor
+    kdevclangutil   # For clangDebug()
 
     # This is really nasty...
+    ${CLANG_CLANG_LIB}  # For kdevclangutil
     ${CLANG_CLANGTOOLING_LIB}
     ${CLANG_CLANGFRONTEND_LIB}
     ${CLANG_CLANGDRIVER_LIB}

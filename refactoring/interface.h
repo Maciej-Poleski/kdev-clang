@@ -1,3 +1,24 @@
+/*
+    This file is part of KDevelop
+
+    Copyright 2015 Maciej Poleski <d82ks8djf82msd83hf8sc02lqb5gh5@gmail.com>
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Library General Public
+    License as published by the Free Software Foundation; either
+    version 2 of the License, or (at your option) any later version.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Library General Public License for more details.
+
+    You should have received a copy of the GNU Library General Public License
+    along with this library; see the file COPYING.LIB.  If not, write to
+    the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+    Boston, MA 02110-1301, USA.
+*/
+
 // This header file should be independent of any Clang libraries both
 // compile time and run time.
 // All of refactorings features will be accessible from here
@@ -86,7 +107,34 @@ RefactoringsContext getRefactoringsContext(
         std::unordered_map<std::string, std::string> &&cache
 );
 
-// TODO: method to update cache of RefactoringsContext
+/**
+ * Add/update content of @p fileName in cache. This method is designed to keep
+ * KDevelop caches in sync with Clang caches. Clang cache must be up-to-date
+ * before use of any other method taking @c RefactoringsContext as argument.
+ *
+ * @param rc Initialized refactorings context which will be updated
+ * @param fileName File name of file which content changed in KDevelop caches
+ * @param fileContent New content of (the whole) file
+ */
+void updateCache(
+        RefactoringsContext rc,
+        std::string &&fileName,
+        std::string &&fileContent
+);
+
+/**
+ * Remove file @p fileName from Clang cache. This method is designed to keep
+ * KDevelop caches in sync with Clang caches. Clang cache must be up-to-date
+ * before use of any other method taking @c RefactoringsContext as argument.
+ *
+ * @param rc Initialized refactorings context which will be updated
+ * @param fileName File name of file which was removed from KDevelop caches
+ *                 (and flushed to disk)
+ */
+void removeFromCache(
+        RefactoringsContext rc,
+        const std::string &fileName
+);
 
 /**
  * Returns all applicable refactorings "here"
@@ -116,8 +164,7 @@ std::string describeRefactoringKind(
 
 // TODO: refactorThis(RefactoringsContext, RefactoringKind, Location, ...)
 // TODO: refactor(RefactoringsContext, RefactoringKind, What, ...)
-// ^^^^ will return Replacements or immediate translation to DocumentChangeSet
-// THIS IS THE NEXT TASK
+// ^^^^ will return DocumentChangeSet
 };
 
 #endif //KDEV_CLANG_INTERFACE_H
