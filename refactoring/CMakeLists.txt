@@ -2,7 +2,7 @@
 set(SRCS
     interface.cpp
     utils.cpp
-    Cache.cpp
+    DocumentCache.cpp
 )
 
 # static version for standalone executable
@@ -15,7 +15,7 @@ add_library(kdevclangrefactor SHARED
 )
 
 set_target_properties(kdevclangrefactor PROPERTIES
-    CXX_STANDARD 14
+    CXX_STANDARD 11 # Use Clang (which is at least 3.6) to get guaranteed C++14 support
     #CXX_VISIBILITY_PRESET hidden
 )
 
@@ -97,7 +97,7 @@ LINK_PRIVATE
     # A few more dependencies of Clang (TODO: cleanup)
     pthread # it must be somewhere around...
     z       # known as zlib
-    dl
+    ${CMAKE_DL_LIBS}
     ncurses # in fact tinfo (part of ncurses, can be built separately, TODO: handle that)
 )
 

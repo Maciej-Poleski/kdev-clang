@@ -34,10 +34,12 @@
 /**
  * Implementation of documents cache for use with libTooling
  */
-class Cache
+class DocumentCache
 {
 public:
-    Cache(std::unordered_map<std::string, std::string> &&data);
+    // TODO: consider handling IDocumentController directly (maybe using inferior QObject inside
+    // this class to connect to Qt signals). Remember about threads!!!
+    DocumentCache(std::unordered_map<std::string, std::string> &&data);
 
     bool containsFile(llvm::StringRef name) const;
     const std::string& getFileContent(llvm::StringRef name) const;

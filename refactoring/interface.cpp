@@ -22,7 +22,7 @@
 #include "interface.h"
 
 #include "utils.h"
-#include "Cache.h"
+#include "DocumentCache.h"
 
 //////////////////////// Compilation Database
 
@@ -32,29 +32,30 @@ struct CompilationDatabase_t
     std::unique_ptr<clang::tooling::CompilationDatabase> database;
 };
 
-CompilationDatabase getCompilationDatabase(
-        const std::string &buildPath,
-        ProjectKind kind,
-        std::string &errorMessage
-)
-{
-    if (kind != ProjectKind::CMAKE)
-    {
+CompilationDatabase createCompilationDatabase(const std::string &buildPath, ProjectKind kind,
+                                              std::string &errorMessage) {
+    if (kind != ProjectKind::CMAKE) {
         errorMessage = "Only CMake projects are supported for now";
         return nullptr;
     }
     auto result = makeCompilationDatabaseFromCMake(buildPath, errorMessage);
-    if (result == nullptr)
-    {
+    if (result == nullptr) {
         return nullptr;
     }
     return new CompilationDatabase_t{std::move(result)};
 };
 
-void releaseCompilationDatabase(
-        CompilationDatabase db
-)
-{
+CompilationDatabase createCMakeCompilationDatabase(const std::string &buildPath) {
+    std::string error;  // ignored, required by Clang API
+    auto cd = makeCompilationDatabaseFromCMake(buildPath, error);
+    if (cd == nullptr) {
+        return nullptr;
+    } else {
+        return new CompilationDatabase_t{std::move(cd)};
+    }
+}
+
+void releaseCompilationDatabase(CompilationDatabase db) {
     delete db;
 }
 
@@ -63,20 +64,17 @@ void releaseCompilationDatabase(
 struct RefactoringsContext_t
 {
     std::unique_ptr<clang::tooling::CompilationDatabase> database;
-    Cache cache;
+    DocumentCache cache;
     // NOTE: exists CodeRepresentation (KDevelop side)
     clang::tooling::ClangTool clangTool;
 };
 
-RefactoringsContext getRefactoringsContext(
-        CompilationDatabase db,
-        const std::vector<std::string> &sources,
-        std::unordered_map<std::string, std::string> &&cache
-)
-{
+RefactoringsContext createRefactoringsContext(CompilationDatabase db,
+                                              const std::vector<std::string> &sources,
+                                              std::unordered_map<std::string, std::string> &&cache) {
     auto result = new RefactoringsContext_t{
             std::move(db->database),
-            Cache(std::move(cache)),
+            DocumentCache(std::move(cache)),
             makeClangTool(*db->database, sources)
     };
     result->cache.makeClangToolCacheAware(result->clangTool);
@@ -84,25 +82,15 @@ RefactoringsContext getRefactoringsContext(
     return result;
 }
 
-void updateCache(
-        RefactoringsContext rc,
-        std::string &&fileName,
-        std::string &&fileContent
-)
-{
+void updateCache(RefactoringsContext rc, std::string &&fileName, std::string &&fileContent) {
     rc->cache.updateFileContent(std::move(fileName), std::move(fileContent));
 }
 
-void removeFromCache(
-        RefactoringsContext rc,
-        const std::string &fileName
-)
-{
+void removeFromCache(RefactoringsContext rc, const std::string &fileName) {
     rc->cache.removeFile(fileName);
     auto &fm = rc->clangTool.getFiles();
     auto file = fm.getFile(fileName, false, false);
-    if (file)   // if file is not cached - done,
-    {
+    if (file) { // if file is not cached - done,
         //  otherwise ...
         fm.invalidateCache(file);
     }

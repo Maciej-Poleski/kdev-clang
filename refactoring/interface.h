@@ -39,19 +39,18 @@ struct RefactoringsContext_t;
 // to provide interoperability with KDevelop based on stable, predictable ABI.
 // It can bu used later to dlopen implementation, or as "engine" in standalone
 // executable.
-// Note: it doesn't mean use of POD data types here
 // Note: some types are not fully known now. typedefs will change soon
-extern "C" {
-// Qt plugin system may be better solution
 
-typedef void* _unspecified; // Will specify later
+// extern "C" { // here begins the interface
+
+typedef void *_unspecified; // Will specify later
 
 // CompilationDatabase will be used internally, but needs initialization
-typedef CompilationDatabase_t* CompilationDatabase;
+typedef CompilationDatabase_t *CompilationDatabase;
 
 // All data which can be required for any operation of this library.
 // It is CompilationDatabase, ClangTool (with virtual files), ...
-typedef RefactoringsContext_t* RefactoringsContext;
+typedef RefactoringsContext_t *RefactoringsContext;
 
 // Short information about one particular kind of refactoring.
 typedef _unspecified RefactoringKind;
@@ -74,22 +73,26 @@ enum class ProjectKind
  * @param errorMessage will be set to error message if any occurred
  * @return Compilation database for given project
  */
-CompilationDatabase getCompilationDatabase(
-        const std::string &buildPath,
-        ProjectKind kind,
-        std::string &errorMessage
-);
+CompilationDatabase createCompilationDatabase(const std::string &buildPath, ProjectKind kind,
+                                              std::string &errorMessage);
+
+/**
+ * Simpler version of the above only for CMake projects as requested in
+ * https://git.reviewboard.kde.org/r/123963/#comment55684 and
+ * https://git.reviewboard.kde.org/r/123963/#comment55548
+ *
+ * @return nullptr on error
+ */
+CompilationDatabase createCMakeCompilationDatabase(const std::string &buildPath);
 
 /**
  * Frees resources used by given compilation database.
- * NOTE: You mustn't release database given to @c getRefactoringsContext
+ * NOTE: You mustn't release database given to @c createRefactoringsContext
  * as that function takes ownership of compilation database.
  *
  * @param db compilation database to be released
  */
-void releaseCompilationDatabase(
-        CompilationDatabase  db
-);
+void releaseCompilationDatabase(CompilationDatabase db);
 
 // TODO: mergeCompilationDatabases - handle refactorings between projects
 
@@ -101,11 +104,9 @@ void releaseCompilationDatabase(
  * @param cache Mapping from file name to file content of cached files
  * @return Context for future use with refactorings
  */
-RefactoringsContext getRefactoringsContext(
-        CompilationDatabase db,
-        const std::vector<std::string> &sources,
-        std::unordered_map<std::string, std::string> &&cache
-);
+RefactoringsContext createRefactoringsContext(CompilationDatabase db,
+                                              const std::vector<std::string> &sources,
+                                              std::unordered_map<std::string, std::string> &&cache);
 
 /**
  * Add/update content of @p fileName in cache. This method is designed to keep
@@ -116,11 +117,7 @@ RefactoringsContext getRefactoringsContext(
  * @param fileName File name of file which content changed in KDevelop caches
  * @param fileContent New content of (the whole) file
  */
-void updateCache(
-        RefactoringsContext rc,
-        std::string &&fileName,
-        std::string &&fileContent
-);
+void updateCache(RefactoringsContext rc, std::string &&fileName, std::string &&fileContent);
 
 /**
  * Remove file @p fileName from Clang cache. This method is designed to keep
@@ -131,10 +128,7 @@ void updateCache(
  * @param fileName File name of file which was removed from KDevelop caches
  *                 (and flushed to disk)
  */
-void removeFromCache(
-        RefactoringsContext rc,
-        const std::string &fileName
-);
+void removeFromCache(RefactoringsContext rc, const std::string &fileName);
 
 /**
  * Returns all applicable refactorings "here"
@@ -145,11 +139,9 @@ void removeFromCache(
  *
  * @return List of all applicable refactorings "here"
  */
-std::vector<RefactoringKind> getAllApplicableRefactorings(
-        RefactoringsContext rc,
-        std::string sourceFile,
-        unsigned location
-);
+std::vector<RefactoringKind> allApplicableRefactorings(RefactoringsContext rc,
+                                                       std::string sourceFile,
+                                                       unsigned location);
 
 /**
  * Returns short human readable "name" of a refactoring action.
@@ -158,13 +150,12 @@ std::vector<RefactoringKind> getAllApplicableRefactorings(
  * @param refactoring A refactoring kind we are asking for description
  * @return Short human readable description
  */
-std::string describeRefactoringKind(
-        RefactoringKind refactoring
-);
+std::string describeRefactoringKind(RefactoringKind refactoring);
 
 // TODO: refactorThis(RefactoringsContext, RefactoringKind, Location, ...)
 // TODO: refactor(RefactoringsContext, RefactoringKind, What, ...)
 // ^^^^ will return DocumentChangeSet
-};
+
+//}; // here end the interface
 
 #endif //KDEV_CLANG_INTERFACE_H

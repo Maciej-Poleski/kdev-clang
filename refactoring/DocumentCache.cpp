@@ -19,36 +19,28 @@
     Boston, MA 02110-1301, USA.
 */
 
-#include "Cache.h"
+#include "DocumentCache.h"
 
-#include <memory>
+#include "utils.h"
 
-Cache::Cache(std::unordered_map<std::string, std::string> &&data)
-{
-    for (auto &p : data)
-    {
+DocumentCache::DocumentCache(std::unordered_map<std::string, std::string> &&data) {
+    for (auto &p : data) {
         updateFileContent(p.first, std::move(p.second));
     }
 }
 
-bool Cache::containsFile(llvm::StringRef name) const
-{
+bool DocumentCache::containsFile(llvm::StringRef name) const {
     // TODO: Can make hash table with string references as keys?
     return _data.find(name) != _data.end(); // name is copied only for query
 }
 
-const std::string &Cache::getFileContent(llvm::StringRef name) const
-{
+const std::string &DocumentCache::getFileContent(llvm::StringRef name) const {
     return _data.find(name)->second->second;
 }
 
 
-void Cache::updateFileContent(
-        std::string &&name,
-        std::string &&content
-)
-{
-    auto t = std::make_unique<std::pair<std::string, std::string>>(
+void DocumentCache::updateFileContent(std::string &&name, std::string &&content) {
+    auto t = cpp::make_unique<std::pair<std::string, std::string>>(
             std::move(name),
             std::move(content)
     );
@@ -56,12 +48,8 @@ void Cache::updateFileContent(
     _data[key] = std::move(t);
 }
 
-void Cache::updateFileContent(
-        const std::string &name,
-        std::string &&content
-)
-{
-    auto t = std::make_unique<std::pair<std::string, std::string>>(
+void DocumentCache::updateFileContent(const std::string &name, std::string &&content) {
+    auto t = cpp::make_unique<std::pair<std::string, std::string>>(
             std::cref(name),
             std::move(content)
     );
@@ -69,15 +57,12 @@ void Cache::updateFileContent(
     _data[key] = std::move(t);
 }
 
-void Cache::removeFile(const std::string &name)
-{
+void DocumentCache::removeFile(const std::string &name) {
     _data.erase(name);
 }
 
-void Cache::makeClangToolCacheAware(clang::tooling::ClangTool &clangTool)
-{
-    for (auto &p : _data)
-    {
+void DocumentCache::makeClangToolCacheAware(clang::tooling::ClangTool &clangTool) {
+    for (auto &p : _data) {
         auto &d = *p.second;
         clangTool.mapVirtualFile(d.first, d.second);
     }

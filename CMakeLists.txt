@@ -31,7 +31,12 @@ set_package_properties(Clang PROPERTIES
     URL "http://clang.llvm.org/")
 
 if(LLVM_VERSION MATCHES "^3\\.6\\..*$") # expected version 3.6.*
+if(CMAKE_HOST_UNIX)
+# NOTE: This checks HOST, not TARGET. It may misbehave when cross-compiling.
+# Only bacause of dependency on ncurses, but this dependency is pulled in by Clang, which works
+# somehow on Windows too.
     set(BUILD_REFACTORINGS ON)
+endif()
 endif()
 
 add_definitions(${LLVM_CFLAGS})

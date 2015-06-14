@@ -35,22 +35,27 @@
 #include <language/codegen/documentchangeset.h>
 
 // refactoring
-#include "Cache.h"
+#include "DocumentCache.h"
+
+namespace cpp
+{
+// Use std::make_unique instead of this in C++14
+template<typename T, typename... Args>
+inline std::unique_ptr<T> make_unique(Args &&... args) {
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+};
 
 std::unique_ptr<clang::tooling::CompilationDatabase> makeCompilationDatabaseFromCMake(
-        std::string buildPath,
-        std::string &errorMessage
+        std::string buildPath, std::string &errorMessage);
+
+clang::tooling::ClangTool makeClangTool(const clang::tooling::CompilationDatabase &database,
+                                        const std::vector<std::string> &sources
 );
 
-clang::tooling::ClangTool makeClangTool(
-        const clang::tooling::CompilationDatabase &database,
-        const std::vector<std::string>& sources
-);
-
-KDevelop::DocumentChangeSet toDocumentChangeSet(
-        const clang::tooling::Replacements &replacements,
-        const Cache &cache,
-        const clang::FileManager &fileManager
+KDevelop::DocumentChangeSet toDocumentChangeSet(const clang::tooling::Replacements &replacements,
+                                                const DocumentCache &cache,
+                                                const clang::FileManager &fileManager
 );
 
 #endif //KDEV_CLANG_UTILS_H

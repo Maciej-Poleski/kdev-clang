@@ -26,20 +26,15 @@
 #include "util/clangdebug.h"
 
 using namespace clang::tooling;
+using namespace KDevelop;
 
-std::unique_ptr<CompilationDatabase> makeCompilationDatabaseFromCMake(
-        std::string buildPath,
-        std::string &errorMessage
-)
-{
+std::unique_ptr<CompilationDatabase> makeCompilationDatabaseFromCMake(std::string buildPath,
+                                                                      std::string &errorMessage) {
     return CompilationDatabase::loadFromDirectory(buildPath, errorMessage);
 }
 
-ClangTool makeClangTool(
-        const CompilationDatabase &database,
-        const std::vector<std::string> &sources
-)
-{
+ClangTool makeClangTool(const CompilationDatabase &database,
+                        const std::vector<std::string> &sources) {
     auto result = ClangTool(database, sources);
     return result;
 }
@@ -52,28 +47,22 @@ enum class EndOfLine
 };
 
 /// Detect end of line marker in @p text
-static EndOfLine endOfLine(llvm::StringRef text)
-{
+static EndOfLine endOfLine(llvm::StringRef text) {
     bool seenCr = false;
-    for (auto c : text)
-    {
-        switch (c)
-        {
+    for (auto c : text) {
+        switch (c) {
         case '\r':
             seenCr = true;
             break;
         case '\n':
-            if (seenCr)
-            {
+            if (seenCr) {
                 return EndOfLine::CRLF;
             }
-            else
-            {
+            else {
                 return EndOfLine::LF;
             }
         default:
-            if (seenCr)
-            {
+            if (seenCr) {
                 return EndOfLine::CR;
             }
         }
@@ -83,32 +72,24 @@ static EndOfLine endOfLine(llvm::StringRef text)
 }
 
 // Cached entries need manual handling because these are outside of FileManager
-static KTextEditor::Range toRange(
-        llvm::StringRef text,
-        unsigned offset,
-        unsigned length
-)
-{
+static KTextEditor::Range toRange(llvm::StringRef text, unsigned offset, unsigned length) {
     unsigned lastLine = 0;
     unsigned lastColumn = 0;
+    // last* is our cursor
     const EndOfLine eolMarker = endOfLine(text);
     // LF always ends line
-    auto move = [&text, &lastLine, &lastColumn, eolMarker](
+    // Shift cursor in text assuming cursor is in @p offset and eating @p length chars
+    auto shift = [&text, &lastLine, &lastColumn, eolMarker](
             unsigned start,
-            unsigned length
-    ) {
-        for (unsigned i = start; i < start + length && i < text.size(); ++i)
-        {
-            switch (text[i])
-            {
+            unsigned length) {
+        for (unsigned i = start; i < start + length && i < text.size(); ++i) {
+            switch (text[i]) {
             case '\r':
-                if (eolMarker == EndOfLine::CR)
-                {
+                if (eolMarker == EndOfLine::CR) {
                     lastLine++;
                     lastColumn = 0;
                 }
-                else
-                {
+                else {
                     lastColumn++;
                 }
                 break;
@@ -121,31 +102,24 @@ static KTextEditor::Range toRange(
             }
         }
     };
-    move(0, offset);
+    shift(0, offset);
     const KTextEditor::Cursor start(lastLine, lastColumn);
-    move(offset, length);
+    shift(offset, length);
     const KTextEditor::Cursor end(lastLine, lastColumn);
     return KTextEditor::Range(std::move(start), std::move(end));
 }
 
 /// Decides if file should be taken from cache or file system and takes it
-static llvm::StringRef getFileContent(
-        llvm::StringRef name,
-        const Cache &cache,
-        clang::FileManager &fileManager
-)
-{
-    if (cache.containsFile(name))
-    {
+static llvm::StringRef readFileContent(llvm::StringRef name, const DocumentCache &cache,
+                                       clang::FileManager &fileManager) {
+    if (cache.containsFile(name)) {
         return cache.getFileContent(name);
     }
-    else
-    {
+    else {
         auto r = fileManager.getBufferForFile(name);
-        if (!r)
-        {
+        if (!r) {
             //throw std::runtime_error("Unable to read from file " + name.str());
-            clangDebug()<<"Unable to read from file " << name.str().c_str();
+            clangDebug() << "Unable to read from file " << name.str().c_str();
             return llvm::StringRef();
             // are exceptions really so scary?
         }
@@ -153,16 +127,12 @@ static llvm::StringRef getFileContent(
     }
 }
 
-static KDevelop::DocumentChange toDocumentChange(
-        const Replacement &replacement,
-        const Cache &cache,
-        clang::FileManager &fileManager
-)
-{
-    // mapping z cache odbywa się przed samym run - filemanager o nim nie wie
-    // SourceManager::getColumnNumber chyba numeruje od 1
-    // linie chyba też
-    // czy on w ogóle robi refaktoring na zamapowanych plikach?
+static DocumentChange toDocumentChange(const Replacement &replacement, const DocumentCache &cache,
+                                       clang::FileManager &fileManager) {
+    // (Clang) FileManager is unaware of cache (from ClangTool) (cache is applied just before run)
+    // SourceManager enumerates columns counting from 1 (probably also lines)
+    // Is ClangTool doing refactoring on mapped files? Certainly Replacements cannot be applied
+    // on cache (not a problem - Refactorings are translated to DocumentChangeSet HERE)
 
     // IndexedString constructor has this limitation
     Q_ASSERT(replacement.getFilePath().size() <=
@@ -176,7 +146,7 @@ static KDevelop::DocumentChange toDocumentChange(
                     )
             ),
             toRange(
-                    getFileContent(
+                    readFileContent(
                             replacement.getFilePath(),
                             cache,
                             fileManager
@@ -192,16 +162,14 @@ static KDevelop::DocumentChange toDocumentChange(
     return result;
 }
 
-KDevelop::DocumentChangeSet toDocumentChangeSet(
-        const clang::tooling::Replacements &replacements,
-        const Cache &cache,
-        clang::FileManager &fileManager
-)
-{
-    //NOTE: Can handle file renaming
-    KDevelop::DocumentChangeSet result;
-    for (const auto &r : replacements)
-    {
+DocumentChangeSet toDocumentChangeSet(const clang::tooling::Replacements &replacements,
+                                      const DocumentCache &cache,
+                                      clang::FileManager &fileManager) {
+    // NOTE: DocumentChangeSet can handle file renaming, libTooling will not do that, but it may be
+    // reasonable in some cases (renaming of a class, ...). This feature may be used outside to
+    // further polish result.
+    DocumentChangeSet result;
+    for (const auto &r : replacements) {
         result.addChange(toDocumentChange(r, cache, fileManager));
     }
     return result;
