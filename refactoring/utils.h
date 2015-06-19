@@ -41,7 +41,8 @@ namespace cpp
 {
 // Use std::make_unique instead of this in C++14
 template<typename T, typename... Args>
-inline std::unique_ptr<T> make_unique(Args &&... args) {
+inline std::unique_ptr<T> make_unique(Args &&... args)
+{
     return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 };
@@ -53,9 +54,10 @@ clang::tooling::ClangTool makeClangTool(const clang::tooling::CompilationDatabas
                                         const std::vector<std::string> &sources
 );
 
-KDevelop::DocumentChangeSet toDocumentChangeSet(const clang::tooling::Replacements &replacements,
-                                                const DocumentCache &cache,
-                                                const clang::FileManager &fileManager
+llvm::ErrorOr<KDevelop::DocumentChangeSet> toDocumentChangeSet(
+        const clang::tooling::Replacements &replacements,
+        const DocumentCache &cache,
+        const clang::FileManager &fileManager
 );
 
 #endif //KDEV_CLANG_UTILS_H

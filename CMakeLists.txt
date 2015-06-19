@@ -84,17 +84,32 @@ set(kdevclangsupport_SRCS
 
 kdevplatform_add_plugin(kdevclangsupport JSON kdevclangsupport.json SOURCES ${kdevclangsupport_SRCS})
 
-target_link_libraries(kdevclangsupport
-    kdevclangduchain
-    kdevclangcodecompletion
-    kdevclangcodegen
-    kdevclangutil
+if(${BUILD_REFACTORINGS})
+    target_link_libraries(kdevclangsupport
+        kdevclangduchain
+        kdevclangcodecompletion
+        kdevclangcodegen
+        kdevclangutil
+        kdevclangrefactor
 
-    KF5::ThreadWeaver
-    KF5::TextEditor
-    KDev::Util
-    KDev::Project
-)
+        KF5::ThreadWeaver
+        KF5::TextEditor
+        KDev::Util
+        KDev::Project
+    )
+else()
+    target_link_libraries(kdevclangsupport
+        kdevclangduchain
+        kdevclangcodecompletion
+        kdevclangcodegen
+        kdevclangutil
+
+        KF5::ThreadWeaver
+        KF5::TextEditor
+        KDev::Util
+        KDev::Project
+    )
+endif()
 
 install(FILES kdevclangsupport.rc DESTINATION ${KXMLGUI_INSTALL_DIR}/kdevclangsupport)
 

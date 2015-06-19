@@ -28,13 +28,18 @@
 using namespace clang::tooling;
 using namespace KDevelop;
 
+using llvm::StringRef;
+using llvm::ErrorOr;
+
 std::unique_ptr<CompilationDatabase> makeCompilationDatabaseFromCMake(std::string buildPath,
-                                                                      std::string &errorMessage) {
+                                                                      std::string &errorMessage)
+{
     return CompilationDatabase::loadFromDirectory(buildPath, errorMessage);
 }
 
 ClangTool makeClangTool(const CompilationDatabase &database,
-                        const std::vector<std::string> &sources) {
+                        const std::vector<std::string> &sources)
+{
     auto result = ClangTool(database, sources);
     return result;
 }
@@ -47,7 +52,8 @@ enum class EndOfLine
 };
 
 /// Detect end of line marker in @p text
-static EndOfLine endOfLine(llvm::StringRef text) {
+static EndOfLine endOfLine(StringRef text)
+{
     bool seenCr = false;
     for (auto c : text) {
         switch (c) {
@@ -57,8 +63,7 @@ static EndOfLine endOfLine(llvm::StringRef text) {
         case '\n':
             if (seenCr) {
                 return EndOfLine::CRLF;
-            }
-            else {
+            } else {
                 return EndOfLine::LF;
             }
         default:
@@ -72,16 +77,18 @@ static EndOfLine endOfLine(llvm::StringRef text) {
 }
 
 // Cached entries need manual handling because these are outside of FileManager
-static KTextEditor::Range toRange(llvm::StringRef text, unsigned offset, unsigned length) {
+static KTextEditor::Range toRange(StringRef text, unsigned offset, unsigned length)
+{
+    Q_ASSERT(offset + length < text.size());
     unsigned lastLine = 0;
     unsigned lastColumn = 0;
     // last* is our cursor
     const EndOfLine eolMarker = endOfLine(text);
     // LF always ends line
     // Shift cursor in text assuming cursor is in @p offset and eating @p length chars
-    auto shift = [&text, &lastLine, &lastColumn, eolMarker](
-            unsigned start,
-            unsigned length) {
+    auto shift = [&text, &lastLine, &lastColumn, eolMarker]
+            (unsigned start, unsigned length)
+    {
         for (unsigned i = start; i < start + length && i < text.size(); ++i) {
             switch (text[i]) {
             case '\r':
@@ -110,25 +117,24 @@ static KTextEditor::Range toRange(llvm::StringRef text, unsigned offset, unsigne
 }
 
 /// Decides if file should be taken from cache or file system and takes it
-static llvm::StringRef readFileContent(llvm::StringRef name, const DocumentCache &cache,
-                                       clang::FileManager &fileManager) {
+static ErrorOr<StringRef> readFileContent(StringRef name, const DocumentCache &cache,
+                                          clang::FileManager &fileManager)
+{
     if (cache.containsFile(name)) {
-        return cache.getFileContent(name);
-    }
-    else {
+        return StringRef(cache.getFileContent(name));
+    } else {
         auto r = fileManager.getBufferForFile(name);
         if (!r) {
-            //throw std::runtime_error("Unable to read from file " + name.str());
-            clangDebug() << "Unable to read from file " << name.str().c_str();
-            return llvm::StringRef();
-            // are exceptions really so scary?
+            return r.getError();
         }
         return r.get()->getBuffer();
     }
 }
 
-static DocumentChange toDocumentChange(const Replacement &replacement, const DocumentCache &cache,
-                                       clang::FileManager &fileManager) {
+static ErrorOr<DocumentChange> toDocumentChange(const Replacement &replacement,
+                                                const DocumentCache &cache,
+                                                clang::FileManager &fileManager)
+{
     // (Clang) FileManager is unaware of cache (from ClangTool) (cache is applied just before run)
     // SourceManager enumerates columns counting from 1 (probably also lines)
     // Is ClangTool doing refactoring on mapped files? Certainly Replacements cannot be applied
@@ -138,19 +144,19 @@ static DocumentChange toDocumentChange(const Replacement &replacement, const Doc
     Q_ASSERT(replacement.getFilePath().size() <=
              std::numeric_limits<unsigned short>::max());
 
-    auto result = KDevelop::DocumentChange(
-            KDevelop::IndexedString(
+    ErrorOr<StringRef> fileContent = readFileContent(replacement.getFilePath(), cache, fileManager);
+    if (!fileContent) {
+        return fileContent.getError();
+    }
+    auto result = DocumentChange(
+            IndexedString(
                     replacement.getFilePath().data(),
                     static_cast<unsigned short>(
                             replacement.getFilePath().size()
                     )
             ),
             toRange(
-                    readFileContent(
-                            replacement.getFilePath(),
-                            cache,
-                            fileManager
-                    ),
+                    fileContent.get(),
                     replacement.getOffset(),
                     replacement.getLength()
             ),
@@ -162,15 +168,20 @@ static DocumentChange toDocumentChange(const Replacement &replacement, const Doc
     return result;
 }
 
-DocumentChangeSet toDocumentChangeSet(const clang::tooling::Replacements &replacements,
-                                      const DocumentCache &cache,
-                                      clang::FileManager &fileManager) {
+ErrorOr<DocumentChangeSet> toDocumentChangeSet(const clang::tooling::Replacements &replacements,
+                                               const DocumentCache &cache,
+                                               clang::FileManager &fileManager)
+{
     // NOTE: DocumentChangeSet can handle file renaming, libTooling will not do that, but it may be
     // reasonable in some cases (renaming of a class, ...). This feature may be used outside to
     // further polish result.
     DocumentChangeSet result;
     for (const auto &r : replacements) {
-        result.addChange(toDocumentChange(r, cache, fileManager));
+        ErrorOr<DocumentChange> documentChange = toDocumentChange(r, cache, fileManager);
+        if (!documentChange) {
+            return documentChange.getError();
+        }
+        result.addChange(documentChange.get());
     }
     return result;
 }

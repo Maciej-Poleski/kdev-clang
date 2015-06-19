@@ -23,46 +23,45 @@
 
 #include "utils.h"
 
-DocumentCache::DocumentCache(std::unordered_map<std::string, std::string> &&data) {
+DocumentCache::DocumentCache(std::unordered_map<std::string, std::string> data) {
     for (auto &p : data) {
         updateFileContent(p.first, std::move(p.second));
     }
 }
 
 bool DocumentCache::containsFile(llvm::StringRef name) const {
-    // TODO: Can make hash table with string references as keys?
-    return _data.find(name) != _data.end(); // name is copied only for query
+    return m_data.find(name) != m_data.end();
 }
 
 const std::string &DocumentCache::getFileContent(llvm::StringRef name) const {
-    return _data.find(name)->second->second;
+    return m_data.find(name)->second->second;
 }
 
 
-void DocumentCache::updateFileContent(std::string &&name, std::string &&content) {
+void DocumentCache::updateFileContent(std::string &&name, std::string content) {
     auto t = cpp::make_unique<std::pair<std::string, std::string>>(
             std::move(name),
             std::move(content)
     );
     llvm::StringRef key = t->first;
-    _data[key] = std::move(t);
+    m_data[key] = std::move(t);
 }
 
-void DocumentCache::updateFileContent(const std::string &name, std::string &&content) {
+void DocumentCache::updateFileContent(const std::string &name, std::string content) {
     auto t = cpp::make_unique<std::pair<std::string, std::string>>(
             std::cref(name),
             std::move(content)
     );
     llvm::StringRef key = t->first;
-    _data[key] = std::move(t);
+    m_data[key] = std::move(t);
 }
 
 void DocumentCache::removeFile(const std::string &name) {
-    _data.erase(name);
+    m_data.erase(name);
 }
 
 void DocumentCache::makeClangToolCacheAware(clang::tooling::ClangTool &clangTool) {
-    for (auto &p : _data) {
+    for (auto &p : m_data) {
         auto &d = *p.second;
         clangTool.mapVirtualFile(d.first, d.second);
     }

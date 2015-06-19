@@ -106,7 +106,7 @@ void releaseCompilationDatabase(CompilationDatabase db);
  */
 RefactoringsContext createRefactoringsContext(CompilationDatabase db,
                                               const std::vector<std::string> &sources,
-                                              std::unordered_map<std::string, std::string> &&cache);
+                                              std::unordered_map<std::string, std::string> cache);
 
 /**
  * Add/update content of @p fileName in cache. This method is designed to keep
@@ -117,7 +117,7 @@ RefactoringsContext createRefactoringsContext(CompilationDatabase db,
  * @param fileName File name of file which content changed in KDevelop caches
  * @param fileContent New content of (the whole) file
  */
-void updateCache(RefactoringsContext rc, std::string &&fileName, std::string &&fileContent);
+void updateCache(RefactoringsContext rc, std::string fileName, std::string fileContent);
 
 /**
  * Remove file @p fileName from Clang cache. This method is designed to keep

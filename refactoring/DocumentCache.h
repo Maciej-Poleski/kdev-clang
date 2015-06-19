@@ -39,19 +39,19 @@ class DocumentCache
 public:
     // TODO: consider handling IDocumentController directly (maybe using inferior QObject inside
     // this class to connect to Qt signals). Remember about threads!!!
-    DocumentCache(std::unordered_map<std::string, std::string> &&data);
+    DocumentCache(std::unordered_map<std::string, std::string> data);
 
     bool containsFile(llvm::StringRef name) const;
     const std::string& getFileContent(llvm::StringRef name) const;
 
-    void updateFileContent(std::string &&name, std::string &&content);
-    void updateFileContent(const std::string &name, std::string &&content);
+    void updateFileContent(std::string &&name, std::string content);
+    void updateFileContent(const std::string &name, std::string content);
     void removeFile(const std::string &name);
 
     void makeClangToolCacheAware(clang::tooling::ClangTool &clangTool);
 
 private:
-    llvm::StringMap<std::unique_ptr<std::pair<std::string, std::string>>> _data;
+    llvm::StringMap<std::unique_ptr<std::pair<std::string, std::string>>> m_data;
 };
 
 

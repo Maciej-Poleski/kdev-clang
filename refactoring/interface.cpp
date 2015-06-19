@@ -33,7 +33,8 @@ struct CompilationDatabase_t
 };
 
 CompilationDatabase createCompilationDatabase(const std::string &buildPath, ProjectKind kind,
-                                              std::string &errorMessage) {
+                                              std::string &errorMessage)
+{
     if (kind != ProjectKind::CMAKE) {
         errorMessage = "Only CMake projects are supported for now";
         return nullptr;
@@ -45,7 +46,8 @@ CompilationDatabase createCompilationDatabase(const std::string &buildPath, Proj
     return new CompilationDatabase_t{std::move(result)};
 };
 
-CompilationDatabase createCMakeCompilationDatabase(const std::string &buildPath) {
+CompilationDatabase createCMakeCompilationDatabase(const std::string &buildPath)
+{
     std::string error;  // ignored, required by Clang API
     auto cd = makeCompilationDatabaseFromCMake(buildPath, error);
     if (cd == nullptr) {
@@ -55,7 +57,8 @@ CompilationDatabase createCMakeCompilationDatabase(const std::string &buildPath)
     }
 }
 
-void releaseCompilationDatabase(CompilationDatabase db) {
+void releaseCompilationDatabase(CompilationDatabase db)
+{
     delete db;
 }
 
@@ -71,7 +74,8 @@ struct RefactoringsContext_t
 
 RefactoringsContext createRefactoringsContext(CompilationDatabase db,
                                               const std::vector<std::string> &sources,
-                                              std::unordered_map<std::string, std::string> &&cache) {
+                                              std::unordered_map<std::string, std::string> cache)
+{
     auto result = new RefactoringsContext_t{
             std::move(db->database),
             DocumentCache(std::move(cache)),
@@ -82,11 +86,13 @@ RefactoringsContext createRefactoringsContext(CompilationDatabase db,
     return result;
 }
 
-void updateCache(RefactoringsContext rc, std::string &&fileName, std::string &&fileContent) {
+void updateCache(RefactoringsContext rc, std::string fileName, std::string fileContent)
+{
     rc->cache.updateFileContent(std::move(fileName), std::move(fileContent));
 }
 
-void removeFromCache(RefactoringsContext rc, const std::string &fileName) {
+void removeFromCache(RefactoringsContext rc, const std::string &fileName)
+{
     rc->cache.removeFile(fileName);
     auto &fm = rc->clangTool.getFiles();
     auto file = fm.getFile(fileName, false, false);

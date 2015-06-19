@@ -5,23 +5,14 @@ set(SRCS
     DocumentCache.cpp
 )
 
-# static version for standalone executable
-# shared for dlopen or plugin stuff
-#add_library(kdevclangrefactorstatic STATIC
-#    ${SRCS}
-#)
-add_library(kdevclangrefactor SHARED
+add_library(kdevclangrefactor STATIC
     ${SRCS}
 )
 
-set_target_properties(kdevclangrefactor PROPERTIES
-    CXX_STANDARD 11 # Use Clang (which is at least 3.6) to get guaranteed C++14 support
-    #CXX_VISIBILITY_PRESET hidden
-)
+# TODO: Use Clang (provided 3.6) for language support (C++14, C++17, ...)
 
 # TODO tests
 
-# also need static version here?
 target_link_libraries(kdevclangrefactor
 LINK_PRIVATE
     KDev::Util
@@ -102,8 +93,3 @@ LINK_PRIVATE
 )
 
 #set_target_properties(kdevclangrefactor PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
-
-# TODO improve this
-# It seems to me that use of Qt plugin system would be quite good compromise
-# between usability, portability, and implementation effort
-install(TARGETS kdevclangrefactor DESTINATION ${PLUGIN_INSTALL_DIR}/kdevplatform/${KDEV_PLUGIN_VERSION})
