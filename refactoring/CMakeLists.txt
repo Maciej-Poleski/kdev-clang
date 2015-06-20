@@ -2,14 +2,18 @@
 set(SRCS
     interface.cpp
     utils.cpp
-    DocumentCache.cpp
+    documentcache.cpp
+    refactoring.cpp
+    refactoringinfo.cpp
+    nooprefactoring.cpp
+    kdevrefactorings.cpp
+    renamevardeclrefactoring.cpp
+    refactoringcontext.cpp
 )
 
 add_library(kdevclangrefactor STATIC
     ${SRCS}
 )
-
-# TODO: Use Clang (provided 3.6) for language support (C++14, C++17, ...)
 
 # TODO tests
 
@@ -24,6 +28,7 @@ LINK_PRIVATE
     # This is really nasty...
     ${CLANG_CLANG_LIB}  # For kdevclangutil
     ${CLANG_CLANGTOOLING_LIB}
+    ${CLANG_CLANGTOOLINGCORE_LIB}
     ${CLANG_CLANGFRONTEND_LIB}
     ${CLANG_CLANGDRIVER_LIB}
     ${CLANG_CLANGSERIALIZATION_LIB}
@@ -37,7 +42,9 @@ LINK_PRIVATE
     ${CLANG_CLANGINDEX_LIB}
     ${CLANG_CLANGARCMIGRATE_LIB}
     ${CLANG_CLANGREWRITE_LIB}
+    ${CLANG_CLANGREWRITEFRONTEND_LIB}
     ${CLANG_CLANGAST_LIB}
+    ${CLANG_CLANGASTMATCHERS_LIB}
     ${CLANG_CLANGLEX_LIB}
     ${CLANG_CLANGBASIC_LIB}
     ${CLANG_LLVMLTO_LIB}

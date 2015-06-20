@@ -25,32 +25,52 @@
 // C++ std
 #include <string>
 #include <memory>
+#include <vector>
 #include <unordered_map>
+
+// Qt
+#include <QObject>
 
 // LLVM
 #include <llvm/ADT/StringMap.h>
 #include <clang/Tooling/Tooling.h>
+#include <language/codegen/documentchangeset.h>
+#include <clang/Tooling/Refactoring.h>
+
+namespace KDevelop
+{
+class IDocumentController;
+
+class IDocument;
+};
+
+class RefactoringContext;
 
 /**
  * Implementation of documents cache for use with libTooling
  */
-class DocumentCache
+class DocumentCache : public QObject
 {
+    Q_OBJECT;
+    Q_DISABLE_COPY(DocumentCache);
 public:
-    // TODO: consider handling IDocumentController directly (maybe using inferior QObject inside
-    // this class to connect to Qt signals). Remember about threads!!!
-    DocumentCache(std::unordered_map<std::string, std::string> data);
+    DocumentCache(RefactoringContext *parent);
 
-    bool containsFile(llvm::StringRef name) const;
-    const std::string& getFileContent(llvm::StringRef name) const;
+    bool fileIsOpened(llvm::StringRef fileName) const;
 
-    void updateFileContent(std::string &&name, std::string content);
-    void updateFileContent(const std::string &name, std::string content);
-    void removeFile(const std::string &name);
+    llvm::StringRef contentOfOpenedFile(llvm::StringRef fileName);
 
-    void makeClangToolCacheAware(clang::tooling::ClangTool &clangTool);
+    clang::tooling::RefactoringTool &refactoringTool();
 
 private:
+    /// Some modification occurred and we must mark this document as dirty
+    void handleDocumentModified(KDevelop::IDocument *document);
+
+private:
+    std::unique_ptr<clang::tooling::RefactoringTool> m_refactoringTool;
+    std::unordered_map<std::string, std::string> m_cachedFiles;  // This cache if very volatile
+    bool m_dirty = true;
+
     llvm::StringMap<std::unique_ptr<std::pair<std::string, std::string>>> m_data;
 };
 

@@ -26,9 +26,31 @@
 #ifndef KDEV_CLANG_INTERFACE_H
 #define KDEV_CLANG_INTERFACE_H
 
+// C++
 #include <vector>
 #include <string>
 #include <unordered_map>
+
+// Qt
+#include <QUrl>
+#include <QString>
+
+// KF5
+#include <KTextEditor/ktexteditor/cursor.h>
+
+// KDevelop
+#include <language/codegen/documentchangeset.h>
+
+namespace KDevelop
+{
+class IDocumentController;
+};
+
+class RefactoringInfo;
+class RefactoringContext;
+
+namespace Refactorings
+{
 
 struct CompilationDatabase_t;
 struct RefactoringsContext_t;
@@ -41,19 +63,16 @@ struct RefactoringsContext_t;
 // executable.
 // Note: some types are not fully known now. typedefs will change soon
 
-// extern "C" { // here begins the interface
-
-typedef void *_unspecified; // Will specify later
 
 // CompilationDatabase will be used internally, but needs initialization
 typedef CompilationDatabase_t *CompilationDatabase;
 
 // All data which can be required for any operation of this library.
 // It is CompilationDatabase, ClangTool (with virtual files), ...
-typedef RefactoringsContext_t *RefactoringsContext;
+typedef RefactoringContext *RefactoringsContext;
 
 // Short information about one particular kind of refactoring.
-typedef _unspecified RefactoringKind;
+typedef RefactoringInfo *RefactoringKind;
 
 enum class ProjectKind
 {
@@ -74,7 +93,7 @@ enum class ProjectKind
  * @return Compilation database for given project
  */
 CompilationDatabase createCompilationDatabase(const std::string &buildPath, ProjectKind kind,
-                                              std::string &errorMessage);
+                                              QString &errorMessage);
 
 /**
  * Simpler version of the above only for CMake projects as requested in
@@ -97,51 +116,32 @@ void releaseCompilationDatabase(CompilationDatabase db);
 // TODO: mergeCompilationDatabases - handle refactorings between projects
 
 /**
+ * Returns list of all sources from given CompilationDatabase
+ *
+ * @note: dedicated to provide @c sources for @c createRefactoringsContext
+ */
+std::vector<std::string> sources(CompilationDatabase db);
+
+/**
  * Prepare and return main context for refactorings in KDevelop.
  *
  * @param db Up-to-date compilation database
- * @param sources All sources which can be subject of refactorings
- * @param cache Mapping from file name to file content of cached files
  * @return Context for future use with refactorings
  */
-RefactoringsContext createRefactoringsContext(CompilationDatabase db,
-                                              const std::vector<std::string> &sources,
-                                              std::unordered_map<std::string, std::string> cache);
-
-/**
- * Add/update content of @p fileName in cache. This method is designed to keep
- * KDevelop caches in sync with Clang caches. Clang cache must be up-to-date
- * before use of any other method taking @c RefactoringsContext as argument.
- *
- * @param rc Initialized refactorings context which will be updated
- * @param fileName File name of file which content changed in KDevelop caches
- * @param fileContent New content of (the whole) file
- */
-void updateCache(RefactoringsContext rc, std::string fileName, std::string fileContent);
-
-/**
- * Remove file @p fileName from Clang cache. This method is designed to keep
- * KDevelop caches in sync with Clang caches. Clang cache must be up-to-date
- * before use of any other method taking @c RefactoringsContext as argument.
- *
- * @param rc Initialized refactorings context which will be updated
- * @param fileName File name of file which was removed from KDevelop caches
- *                 (and flushed to disk)
- */
-void removeFromCache(RefactoringsContext rc, const std::string &fileName);
+RefactoringsContext createRefactoringsContext(CompilationDatabase db);
 
 /**
  * Returns all applicable refactorings "here"
  *
  * @param rc Initialized refactorings context
- * @param sourceFile queried source file name (full path) (may be changed to QUrl, ...)
+ * @param sourceFile queried source file name (full path)
  * @param location offset from beginning of the file to location we are querying
  *
  * @return List of all applicable refactorings "here"
  */
 std::vector<RefactoringKind> allApplicableRefactorings(RefactoringsContext rc,
-                                                       std::string sourceFile,
-                                                       unsigned location);
+                                                       const QUrl &sourceFile,
+                                                       const KTextEditor::Cursor &location);
 
 /**
  * Returns short human readable "name" of a refactoring action.
@@ -150,12 +150,33 @@ std::vector<RefactoringKind> allApplicableRefactorings(RefactoringsContext rc,
  * @param refactoring A refactoring kind we are asking for description
  * @return Short human readable description
  */
-std::string describeRefactoringKind(RefactoringKind refactoring);
+QString describeRefactoringKind(RefactoringKind refactoring);
+
+/**
+ * Invokes selected refactoring action on selected place in file.
+ *
+ * @param rc Initialized refactorings context
+ * @param refactoring A refactoring kind we are going to apply here
+ * @param sourceFile source file name (full path)
+ * @param position position in source file which we are going to work on
+ */
+KDevelop::DocumentChangeSet refactorThis(RefactoringsContext rc, RefactoringKind refactoring,
+                                         const QUrl &sourceFile,
+                                         const KTextEditor::Cursor &position);
+// NOTE: We have to cooperate with cache here (it is guaranteed that sourceFile is in cache,
+// as this file is already opened). Maybe it is more reasonable to provide Document* here?
+// Especially when DocumentCache middleware will be IDocumentController aware.
+// NOTE: position (Cursor) is not nice - will need translation to offset.
+// NOTE: We are going to need some GUI handle here. Probably something like QWidget* parent
+// will be introduced as additional parameter (but it will bind this interface to Qt Widgets).
+// NOTE: Can we block calling thread? I would say no. We are going to need Qt wrapper/continuation
+// here.
+
 
 // TODO: refactorThis(RefactoringsContext, RefactoringKind, Location, ...)
 // TODO: refactor(RefactoringsContext, RefactoringKind, What, ...)
 // ^^^^ will return DocumentChangeSet
 
-//}; // here end the interface
+};
 
 #endif //KDEV_CLANG_INTERFACE_H

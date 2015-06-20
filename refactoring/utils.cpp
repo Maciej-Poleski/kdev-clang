@@ -21,7 +21,11 @@
 
 #include "utils.h"
 
-#include <llvm/ADT/StringRef.h>
+// Qt
+#include <QString>
+
+// Clang
+#include <clang/Tooling/Refactoring.h>
 
 #include "util/clangdebug.h"
 
@@ -31,16 +35,19 @@ using namespace KDevelop;
 using llvm::StringRef;
 using llvm::ErrorOr;
 
-std::unique_ptr<CompilationDatabase> makeCompilationDatabaseFromCMake(std::string buildPath,
-                                                                      std::string &errorMessage)
+std::unique_ptr<CompilationDatabase> makeCompilationDatabaseFromCMake(const std::string &buildPath,
+                                                                      QString &errorMessage)
 {
-    return CompilationDatabase::loadFromDirectory(buildPath, errorMessage);
+    std::string msg;
+    auto result = CompilationDatabase::loadFromDirectory(buildPath, msg);
+    errorMessage = QString::fromStdString(msg);
+    return result;
 }
 
-ClangTool makeClangTool(const CompilationDatabase &database,
-                        const std::vector<std::string> &sources)
+std::unique_ptr<RefactoringTool> makeRefactoringTool(const CompilationDatabase &database,
+                                                     const std::vector<std::string> &sources)
 {
-    auto result = ClangTool(database, sources);
+    auto result = cpp::make_unique<RefactoringTool>(database, sources);
     return result;
 }
 
@@ -117,11 +124,12 @@ static KTextEditor::Range toRange(StringRef text, unsigned offset, unsigned leng
 }
 
 /// Decides if file should be taken from cache or file system and takes it
-static ErrorOr<StringRef> readFileContent(StringRef name, const DocumentCache &cache,
+static ErrorOr<StringRef> readFileContent(StringRef name, DocumentCache *cache,
                                           clang::FileManager &fileManager)
 {
-    if (cache.containsFile(name)) {
-        return StringRef(cache.getFileContent(name));
+    if (cache->fileIsOpened(name)) {
+        // It would be great if we could get rid of this use of cache
+        return cache->contentOfOpenedFile(name);
     } else {
         auto r = fileManager.getBufferForFile(name);
         if (!r) {
@@ -132,7 +140,7 @@ static ErrorOr<StringRef> readFileContent(StringRef name, const DocumentCache &c
 }
 
 static ErrorOr<DocumentChange> toDocumentChange(const Replacement &replacement,
-                                                const DocumentCache &cache,
+                                                DocumentCache *cache,
                                                 clang::FileManager &fileManager)
 {
     // (Clang) FileManager is unaware of cache (from ClangTool) (cache is applied just before run)
@@ -169,7 +177,7 @@ static ErrorOr<DocumentChange> toDocumentChange(const Replacement &replacement,
 }
 
 ErrorOr<DocumentChangeSet> toDocumentChangeSet(const clang::tooling::Replacements &replacements,
-                                               const DocumentCache &cache,
+                                               DocumentCache *cache,
                                                clang::FileManager &fileManager)
 {
     // NOTE: DocumentChangeSet can handle file renaming, libTooling will not do that, but it may be
@@ -184,4 +192,51 @@ ErrorOr<DocumentChangeSet> toDocumentChangeSet(const clang::tooling::Replacement
         result.addChange(documentChange.get());
     }
     return result;
+}
+
+/**
+ * Translate to definite eol (last character in line)
+ */
+static char toChar(EndOfLine eol)
+{
+    switch (eol) {
+    case EndOfLine::LF:
+    case EndOfLine::CRLF:
+        return '\n';
+    case EndOfLine::CR:
+        return '\r';
+    }
+    Q_ASSERT(false);
+    return '\0';
+}
+
+ErrorOr<unsigned> toOffset(const QUrl &sourceFile, const KTextEditor::Cursor &position,
+                           clang::tooling::ClangTool &clangTool,
+                           DocumentCache *documentCache)
+{
+    std::string fileName = sourceFile.toLocalFile().toStdString();
+    auto fileContent = readFileContent(fileName, documentCache, clangTool.getFiles());
+    if (!fileContent) {
+        return fileContent.getError();
+    }
+    int currentLine = 0;
+    unsigned currentOffset = 0;
+    const char eol = toChar(endOfLine(fileContent.get()));
+    auto i = fileContent.get().begin();
+    while (currentLine < position.line()) {
+        Q_ASSERT(i != fileContent.get().end());
+        auto c = *i++;
+        currentOffset++;
+        if (c == eol) {
+            currentLine++;
+        }
+    }
+    int currentColumn = 0;
+    while (currentColumn < position.column()) {
+        Q_ASSERT(i != fileContent.get().end());
+        i++;
+        currentColumn++;
+        currentOffset++;
+    }
+    return currentOffset;
 }

@@ -26,16 +26,18 @@
 #include <memory>
 #include <unordered_map>
 
-// LLVM
+// Clang
 #include <clang/Tooling/CompilationDatabase.h>
 #include <clang/Tooling/Tooling.h>
+#include <clang/Tooling/Refactoring.h>
 #include <clang/Tooling/Core/Replacement.h>
 
 // KDevelop
 #include <language/codegen/documentchangeset.h>
+#include <clang/Tooling/Refactoring.h>
 
 // refactoring
-#include "DocumentCache.h"
+#include "documentcache.h"
 
 namespace cpp
 {
@@ -48,16 +50,20 @@ inline std::unique_ptr<T> make_unique(Args &&... args)
 };
 
 std::unique_ptr<clang::tooling::CompilationDatabase> makeCompilationDatabaseFromCMake(
-        std::string buildPath, std::string &errorMessage);
+        const std::string &buildPath, QString &errorMessage);
 
-clang::tooling::ClangTool makeClangTool(const clang::tooling::CompilationDatabase &database,
-                                        const std::vector<std::string> &sources
-);
+std::unique_ptr<clang::tooling::RefactoringTool> makeRefactoringTool(
+        const clang::tooling::CompilationDatabase &database,
+        const std::vector<std::string> &sources);
 
 llvm::ErrorOr<KDevelop::DocumentChangeSet> toDocumentChangeSet(
         const clang::tooling::Replacements &replacements,
-        const DocumentCache &cache,
-        const clang::FileManager &fileManager
+        DocumentCache *cache,
+        clang::FileManager &fileManager
 );
+
+llvm::ErrorOr<unsigned> toOffset(const QUrl &sourceFile, const KTextEditor::Cursor &position,
+                                 clang::tooling::ClangTool &clangTool,
+                                 DocumentCache *documentCache);
 
 #endif //KDEV_CLANG_UTILS_H

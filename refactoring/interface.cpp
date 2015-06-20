@@ -21,8 +21,24 @@
 
 #include "interface.h"
 
+// KF5
+#include <KI18n/klocalizedstring.h>
+
+// Clang
+#include <clang/Tooling/Refactoring.h>
+
 #include "utils.h"
-#include "DocumentCache.h"
+#include "refactoringcontext.h"
+#include "documentcache.h"
+#include "refactoringinfo.h"
+
+#include "nooprefactoring.h"
+#include "renamevardeclrefactoring.h"
+
+#include "../util/clangdebug.h"
+
+namespace Refactorings
+{
 
 //////////////////////// Compilation Database
 
@@ -33,10 +49,10 @@ struct CompilationDatabase_t
 };
 
 CompilationDatabase createCompilationDatabase(const std::string &buildPath, ProjectKind kind,
-                                              std::string &errorMessage)
+                                              QString &errorMessage)
 {
     if (kind != ProjectKind::CMAKE) {
-        errorMessage = "Only CMake projects are supported for now";
+        errorMessage = i18n("Only CMake projects are supported for now");
         return nullptr;
     }
     auto result = makeCompilationDatabaseFromCMake(buildPath, errorMessage);
@@ -48,7 +64,7 @@ CompilationDatabase createCompilationDatabase(const std::string &buildPath, Proj
 
 CompilationDatabase createCMakeCompilationDatabase(const std::string &buildPath)
 {
-    std::string error;  // ignored, required by Clang API
+    QString error;  // ignored, required by Clang API
     auto cd = makeCompilationDatabaseFromCMake(buildPath, error);
     if (cd == nullptr) {
         return nullptr;
@@ -62,42 +78,64 @@ void releaseCompilationDatabase(CompilationDatabase db)
     delete db;
 }
 
-///////////////// Refactorings Context
+///////////////// Refactoring Context
 
-struct RefactoringsContext_t
+RefactoringsContext createRefactoringsContext(CompilationDatabase db)
 {
-    std::unique_ptr<clang::tooling::CompilationDatabase> database;
-    DocumentCache cache;
-    // NOTE: exists CodeRepresentation (KDevelop side)
-    clang::tooling::ClangTool clangTool;
-};
-
-RefactoringsContext createRefactoringsContext(CompilationDatabase db,
-                                              const std::vector<std::string> &sources,
-                                              std::unordered_map<std::string, std::string> cache)
-{
-    auto result = new RefactoringsContext_t{
-            std::move(db->database),
-            DocumentCache(std::move(cache)),
-            makeClangTool(*db->database, sources)
-    };
-    result->cache.makeClangToolCacheAware(result->clangTool);
+    auto result = new RefactoringContext(std::move(db->database));
     releaseCompilationDatabase(db);
     return result;
 }
 
-void updateCache(RefactoringsContext rc, std::string fileName, std::string fileContent)
+std::vector<RefactoringKind> allApplicableRefactorings(RefactoringsContext rc,
+                                                       const QUrl &sourceFile,
+                                                       const KTextEditor::Cursor &location)
 {
-    rc->cache.updateFileContent(std::move(fileName), std::move(fileContent));
+    // FIXME: implementation
+    return {new NoopRefactoring(), // This refactoring is applicable everywhere
+            new RenameVarDeclRefactoring()
+    };
+    // FIXME: memory leak (returned objects should be owned by some RefactoringsManager)
+    // This is not a place for real implementation
 }
 
-void removeFromCache(RefactoringsContext rc, const std::string &fileName)
+QString describeRefactoringKind(RefactoringKind refactoring)
 {
-    rc->cache.removeFile(fileName);
-    auto &fm = rc->clangTool.getFiles();
-    auto file = fm.getFile(fileName, false, false);
-    if (file) { // if file is not cached - done,
-        //  otherwise ...
-        fm.invalidateCache(file);
-    }
+    return refactoring->name();
 }
+
+KDevelop::DocumentChangeSet refactorThis(RefactoringsContext rc, RefactoringKind refactoringKind,
+                                         const QUrl &sourceFile,
+                                         const KTextEditor::Cursor &position)
+{
+    Q_ASSERT(rc);
+    Refactoring *refactoring = dynamic_cast<Refactoring *>(refactoringKind);
+    Q_ASSERT(refactoring);
+    // FIXME: introduce RefactoringManager to maintain pool of refactorings and such translations
+
+    auto result = refactoring->invoke(rc->cache->refactoringTool(), rc->cache, sourceFile, position);
+    // TODO: introduce union type for {Location, What}
+
+    if (!result) {
+        // TODO: notify
+        clangDebug() << "Refactoring failed: " << result.getError().message().c_str();
+        return KDevelop::DocumentChangeSet();
+    }
+
+    auto changes = toDocumentChangeSet(result.get(), rc->cache, rc->cache->refactoringTool().getFiles());
+    if (!changes) {
+        // TODO: notify
+        clangDebug() << "Translation Replacements to DocumentChangeSet failed " <<
+                     result.getError().message().c_str();
+        return KDevelop::DocumentChangeSet();
+    }
+    return changes.get();
+}
+
+// TODO: consider removing this function
+std::vector<std::string> sources(CompilationDatabase db)
+{
+    return db->database->getAllFiles();
+}
+
+};
