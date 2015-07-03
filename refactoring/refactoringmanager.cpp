@@ -57,7 +57,13 @@ public:
 
     bool VisitDeclRefExpr(DeclRefExpr *declRefExpr);
 
+    bool VisitVarDecl(VarDecl *varDecl);
+
 private:
+    bool isInRange(SourceRange range) const;
+
+    Refactoring *refactoringForVarDecl(const VarDecl *varDecl) const;
+
     /// Request ClangTool to stop after this translation unit
     void done();
 
@@ -185,6 +191,12 @@ clang::FrontendAction *ExplorerActionFactory::create()
     return new ExplorerAction(*this);
 }
 
+bool ExplorerRecursiveASTVisitor::isInRange(SourceRange range) const
+{
+    return ::isInRange(m_ASTConsumer.m_factory.m_fileName, m_ASTConsumer.m_factory.m_offset, range,
+                       m_ASTConsumer.m_CI.getSourceManager());
+}
+
 void ExplorerRecursiveASTVisitor::done()
 {
     m_ASTConsumer.m_factory.m_stop = true;
@@ -197,28 +209,42 @@ void ExplorerRecursiveASTVisitor::addRefactoring(Refactoring *refactoring)
 
 ////////////////////// DECISIONS ARE MADE BELOW ///////////////////////
 
+Refactoring *ExplorerRecursiveASTVisitor::refactoringForVarDecl(const VarDecl *varDecl) const
+{
+    auto cannoDecl = varDecl->getCanonicalDecl();
+    auto file = m_ASTConsumer.m_CI.getSourceManager().getFilename(
+            cannoDecl->getSourceRange().getBegin());
+    Q_ASSERT(!file.empty());
+    auto offset = m_ASTConsumer.m_CI.getSourceManager().getFileOffset(
+            cannoDecl->getSourceRange().getBegin());
+    auto name = cannoDecl->getName().str();
+    return new RenameVarDeclRefactoring(file, offset, name);
+}
 
 bool ExplorerRecursiveASTVisitor::VisitDeclRefExpr(DeclRefExpr *declRefExpr)
 {
     auto range = tokenRangeToCharRange(declRefExpr->getSourceRange(), m_ASTConsumer.m_CI);
-    if (isInRange(m_ASTConsumer.m_factory.m_fileName, m_ASTConsumer.m_factory.m_offset, range,
-                  m_ASTConsumer.m_CI.getSourceManager()))
-    {
+    if (isInRange(range)) {
         done();
         const VarDecl *varDecl = llvm::dyn_cast<VarDecl>(declRefExpr->getDecl());
         if (!varDecl) {
             clangDebug() << "Found DeclRefExpr, but its declaration is not VarDecl";
             return true;
         }
-        auto canonicalDecl = varDecl->getCanonicalDecl();
-        auto file = m_ASTConsumer.m_CI.getSourceManager().getFilename(
-            canonicalDecl->getSourceRange().getBegin());
-        Q_ASSERT(!file.empty());
-        auto offset = m_ASTConsumer.m_CI.getSourceManager().getFileOffset(
-            canonicalDecl->getSourceRange().getBegin());
-        auto name = canonicalDecl->getName().str();
-        addRefactoring(new RenameVarDeclRefactoring(file, offset, name));
+        addRefactoring(refactoringForVarDecl(varDecl));
         // other options here...
     }
     return true;
 }
+
+bool ExplorerRecursiveASTVisitor::VisitVarDecl(VarDecl *varDecl)
+{
+    auto range = tokenRangeToCharRange(varDecl->getSourceRange(), m_ASTConsumer.m_CI);
+    if (isInRange(range)) {
+        done();
+        addRefactoring(refactoringForVarDecl(varDecl));
+        // other options here...
+    }
+    return true;
+}
+
