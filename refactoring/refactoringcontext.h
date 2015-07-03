@@ -22,8 +22,16 @@
 #ifndef KDEV_CLANG_REFACTORINGCONTEXT_H
 #define KDEV_CLANG_REFACTORINGCONTEXT_H
 
+// base class
 #include <QObject>
 
+// KF5
+#include <KTextEditor/ktexteditor/cursor.h>
+
+// LLVM
+#include <llvm/Support/ErrorOr.h>
+
+// Clang
 #include <clang/Tooling/CompilationDatabase.h>
 
 namespace KDevelop
@@ -33,6 +41,7 @@ class IDocumentController;
 
 class DocumentCache;
 
+// TODO: join with DocumentCache, handle CompilationDatabase here
 class RefactoringContext : public QObject
 {
     Q_OBJECT;
@@ -40,6 +49,9 @@ class RefactoringContext : public QObject
 
 public:
     RefactoringContext(std::unique_ptr<clang::tooling::CompilationDatabase> database);
+
+    llvm::ErrorOr<unsigned> offset(const std::string &sourceFile,
+                                   const KTextEditor::Cursor &position) const;
 
     std::unique_ptr<clang::tooling::CompilationDatabase> database;
     DocumentCache *cache;

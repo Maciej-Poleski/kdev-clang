@@ -31,6 +31,7 @@
 #include <clang/Lex/Lexer.h>
 #include <clang/ASTMatchers/ASTMatchers.h>
 #include <clang/ASTMatchers/ASTMatchFinder.h>
+#include <refactoringcontext.h>
 
 #include "documentcache.h"
 #include "utils.h"
@@ -66,30 +67,29 @@ private:
     const VarDecl *m_foundDeclaration = nullptr;
 };
 
-llvm::ErrorOr<clang::tooling::Replacements> RenameVarDeclRefactoring::invoke(
-        clang::tooling::RefactoringTool &clangTool, DocumentCache *documentCache,
-        QUrl const &sourceFile, KTextEditor::Cursor const &position)
-{
-    unsigned offset;
-    auto _offset = toOffset(sourceFile, position, clangTool, documentCache);
-    if (!_offset) {
-        return _offset.getError();
-    }
-    offset = _offset.get();
-    clangDebug() << "Trying to rename VarDecl at offset: " << offset;
 
+RenameVarDeclRefactoring::RenameVarDeclRefactoring(const std::string &fileName, unsigned offset,
+                                                   const std::string &declName, QObject *parent)
+        : Refactoring(parent), m_fileName(fileName), m_offset(offset),
+          m_oldVarDeclName(declName) { }
+
+llvm::ErrorOr<clang::tooling::Replacements> RenameVarDeclRefactoring::invoke(
+        RefactoringContext *ctx)
+{
+    auto clangTool = ctx->cache->refactoringTool();
+
+    // FIXME: provide old name as default
     const QString newName = QInputDialog::getText(nullptr, i18n("Rename variable"),
                                                   i18n("Type new name of variable"));
     if (newName.isEmpty()) {
         return clangTool.getReplacements();
     }
 
-    clangDebug() << "Will rename to:" << newName;
+    clangDebug() << "Will rename" << m_oldVarDeclName.c_str() << "to:" << newName;
 
     auto matcher = declRefExpr().bind("DeclRef");
 
-    Renamer renamer(sourceFile.toLocalFile().toStdString(), offset, newName.toStdString(),
-                    clangTool.getReplacements());
+    Renamer renamer(m_fileName, m_offset, newName.toStdString(), clangTool.getReplacements());
     MatchFinder finder;
     finder.addMatcher(matcher, &renamer);
 
