@@ -31,6 +31,7 @@
 #include "documentcache.h"
 #include "utils.h"
 #include "renamevardeclrefactoring.h"
+#include "renamefielddeclrefactoring.h"
 #include "debug.h"
 
 #include "renamevardeclrefactoring.h"
@@ -59,10 +60,18 @@ public:
 
     bool VisitVarDecl(VarDecl *varDecl);
 
+    bool VisitFieldDecl(FieldDecl *fieldDecl);
+
+    bool VisitMemberExpr(MemberExpr *memberExpr);
+
 private:
     bool isInRange(SourceRange range) const;
 
+    bool isInRange(SourceLocation location) const;
+
     Refactoring *refactoringForVarDecl(const VarDecl *varDecl) const;
+
+    Refactoring *refactoringForFieldDecl(const FieldDecl *fieldDecl) const;
 
     /// Request ClangTool to stop after this translation unit
     void done();
@@ -174,7 +183,6 @@ std::unique_ptr<ASTConsumer> ExplorerAction::CreateASTConsumer(CompilerInstance 
     Q_UNUSED(InFile);
     // try to fail here if work is done
     if (m_factory.wantStop()) {
-        refactorDebug() << "want stop" << InFile;
         return nullptr;
     } else {
         return std::unique_ptr<ASTConsumer>(new ExplorerASTConsumer(m_factory, CI));
@@ -195,6 +203,11 @@ bool ExplorerRecursiveASTVisitor::isInRange(SourceRange range) const
 {
     return ::isInRange(m_ASTConsumer.m_factory.m_fileName, m_ASTConsumer.m_factory.m_offset, range,
                        m_ASTConsumer.m_CI.getSourceManager());
+}
+
+bool ExplorerRecursiveASTVisitor::isInRange(SourceLocation location) const
+{
+    return isInRange(tokenRangeToCharRange(location, m_ASTConsumer.m_CI));
 }
 
 void ExplorerRecursiveASTVisitor::done()
@@ -225,7 +238,7 @@ Refactoring *ExplorerRecursiveASTVisitor::refactoringForVarDecl(const VarDecl *v
             canonicalDecl->getSourceRange().getBegin());
     Q_ASSERT(!file.empty());
     auto offset = m_ASTConsumer.m_CI.getSourceManager().getFileOffset(
-            canonicalDecl->getSourceRange().getBegin());    // getLocation?
+            canonicalDecl->getSourceRange().getBegin());
     auto name = canonicalDecl->getName().str();
     return new RenameVarDeclRefactoring(file, offset, name, std::move(qualName));
 }
@@ -257,3 +270,39 @@ bool ExplorerRecursiveASTVisitor::VisitVarDecl(VarDecl *varDecl)
     return true;
 }
 
+Refactoring *ExplorerRecursiveASTVisitor::refactoringForFieldDecl(const FieldDecl *fieldDecl) const
+{
+    auto canonicalDecl = fieldDecl->getCanonicalDecl();
+    Q_ASSERT(canonicalDecl->getLinkageInternal() == ExternalLinkage);
+    // FIXME: support other cases
+    std::string qualName;
+    qualName = canonicalDecl->getQualifiedNameAsString();
+    refactorDebug() << "Renaming field - using" << qualName << "as qualified name";
+    auto name = canonicalDecl->getName().str();
+    return new RenameFieldDeclRefactoring(name, std::move(qualName));
+}
+
+bool ExplorerRecursiveASTVisitor::VisitFieldDecl(FieldDecl *fieldDecl)
+{
+    if (isInRange(fieldDecl->getLocation())) {
+        done();
+        addRefactoring(refactoringForFieldDecl(fieldDecl));
+        // other options here...
+    }
+    return true;
+}
+
+bool ExplorerRecursiveASTVisitor::VisitMemberExpr(MemberExpr *memberExpr)
+{
+    if (isInRange(memberExpr->getMemberLoc())) {
+        done();
+        const FieldDecl *fieldDecl = llvm::dyn_cast<FieldDecl>(memberExpr->getMemberDecl());
+        if (!fieldDecl) {
+            // can be CXXMethodDecl as well, but that case is (will be) handled separately
+            return true;
+        }
+        addRefactoring(refactoringForFieldDecl(fieldDecl));
+        // other options here...
+    }
+    return true;
+}
