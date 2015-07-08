@@ -19,16 +19,34 @@
     Boston, MA 02110-1301, USA.
 */
 
-#include <clang/Tooling/Core/Replacement.h>
+#ifndef KDEV_CLANG_CHANGESIGNATUREREFACTORING_H
+#define KDEV_CLANG_CHANGESIGNATUREREFACTORING_H
+
+// Clang
+#include <clang/AST/DeclBase.h>
 
 #include "refactoring.h"
 
-Refactoring::Refactoring(QObject *parent)
-    : QObject(parent)
+class ChangeSignatureRefactoring : public Refactoring
 {
-}
+    Q_OBJECT;
+    Q_DISABLE_COPY(ChangeSignatureRefactoring);
 
-llvm::ErrorOr<clang::tooling::Replacements> Refactoring::cancelledResult()
-{
-    return clang::tooling::Replacements{};
-}
+public:
+    class InfoPack;
+    class ChangePack;
+
+    ChangeSignatureRefactoring(const clang::FunctionDecl *functionDecl);
+
+    virtual ~ChangeSignatureRefactoring() override;
+
+    virtual llvm::ErrorOr<clang::tooling::Replacements> invoke(RefactoringContext *ctx) override;
+
+    virtual QString name() const override;
+
+private:
+    std::unique_ptr<const InfoPack> m_infoPack;
+};
+
+
+#endif //KDEV_CLANG_CHANGESIGNATUREREFACTORING_H

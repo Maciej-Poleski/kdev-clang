@@ -19,16 +19,35 @@
     Boston, MA 02110-1301, USA.
 */
 
-#include <clang/Tooling/Core/Replacement.h>
+#ifndef KDEV_CLANG_CHANGESIGNATUREDIALOG_H
+#define KDEV_CLANG_CHANGESIGNATUREDIALOG_H
 
-#include "refactoring.h"
+// Qt
+#include <QDialog>
 
-Refactoring::Refactoring(QObject *parent)
-    : QObject(parent)
+#include "ui_changesignaturedialog.h"
+
+#include "changesignaturerefactoring.h"
+
+class ChangeSignatureDialog : public QDialog, private Ui::ChangeSignatureDialog
 {
-}
+    Q_OBJECT;
+    Q_DISABLE_COPY(ChangeSignatureDialog);
 
-llvm::ErrorOr<clang::tooling::Replacements> Refactoring::cancelledResult()
-{
-    return clang::tooling::Replacements{};
-}
+    class Model;
+
+    using InfoPack = ChangeSignatureRefactoring::InfoPack;
+    using ChangePack = ChangeSignatureRefactoring::ChangePack;
+
+public:
+    ChangeSignatureDialog(const InfoPack *infoPack, QWidget *parent = nullptr);
+
+private:
+    void reinitializeDialogData();
+
+private:
+    Model *m_model;
+};
+
+
+#endif //KDEV_CLANG_CHANGESIGNATUREDIALOG_H

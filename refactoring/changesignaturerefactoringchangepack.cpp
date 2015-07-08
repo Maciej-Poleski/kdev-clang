@@ -19,16 +19,16 @@
     Boston, MA 02110-1301, USA.
 */
 
-#include <clang/Tooling/Core/Replacement.h>
+#include "changesignaturerefactoringchangepack.h"
+#include "changesignaturerefactoringinfopack.h"
 
-#include "refactoring.h"
-
-Refactoring::Refactoring(QObject *parent)
-    : QObject(parent)
+ChangeSignatureRefactoring::ChangePack::ChangePack(
+    const ChangeSignatureRefactoring::InfoPack *infoPack)
+    : m_paramRefs(infoPack->parameters().size())
 {
-}
-
-llvm::ErrorOr<clang::tooling::Replacements> Refactoring::cancelledResult()
-{
-    return clang::tooling::Replacements{};
+    Q_ASSERT(m_paramRefs.size() <= std::numeric_limits<int>::max());
+    // initialize identity
+    for (int i = 0, s = static_cast<int>(m_paramRefs.size()); i < s; ++i) {
+        m_paramRefs[i] = i;
+    }
 }

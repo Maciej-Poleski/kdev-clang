@@ -19,16 +19,25 @@
     Boston, MA 02110-1301, USA.
 */
 
-#include <clang/Tooling/Core/Replacement.h>
+#ifndef KDEV_CLANG_CHANGESIGNATUREREFACTORING_CHANGEPACK_H
+#define KDEV_CLANG_CHANGESIGNATUREREFACTORING_CHANGEPACK_H
 
-#include "refactoring.h"
+// C++
+#include <vector>
 
-Refactoring::Refactoring(QObject *parent)
-    : QObject(parent)
+#include "changesignaturerefactoring.h"
+
+// This form of changeset preserves source information where possible
+class ChangeSignatureRefactoring::ChangePack
 {
-}
+public:
+    ChangePack(const InfoPack *infoPack);
 
-llvm::ErrorOr<clang::tooling::Replacements> Refactoring::cancelledResult()
-{
-    return clang::tooling::Replacements{};
-}
+    // non-negative value - param from InfoPack at given position
+    // nagative value - param from m_newParam at (-v)-1 position
+    std::vector<int> m_paramRefs;
+    std::vector<std::tuple<std::string, std::string>> m_newParam;
+};
+
+
+#endif //KDEV_CLANG_CHANGESIGNATUREREFACTORING_CHANGEPACK_H
