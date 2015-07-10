@@ -40,6 +40,9 @@ using namespace llvm;
 using namespace clang;
 using namespace clang::tooling;
 
+namespace
+{
+
 class ExplorerASTConsumer;
 
 class ExplorerActionFactory;
@@ -47,7 +50,10 @@ class ExplorerActionFactory;
 class ExplorerRecursiveASTVisitor : public RecursiveASTVisitor<ExplorerRecursiveASTVisitor>
 {
 public:
-    ExplorerRecursiveASTVisitor(ExplorerASTConsumer &ASTConsumer) : m_ASTConsumer(ASTConsumer) { }
+    ExplorerRecursiveASTVisitor(ExplorerASTConsumer &ASTConsumer)
+        : m_ASTConsumer(ASTConsumer)
+    {
+    }
 
     bool VisitDeclRefExpr(DeclRefExpr *declRefExpr);
 
@@ -79,7 +85,10 @@ private:
 class ExplorerAction : public ASTFrontendAction
 {
 public:
-    ExplorerAction(ExplorerActionFactory &factory) : m_factory(factory) { }
+    ExplorerAction(ExplorerActionFactory &factory)
+        : m_factory(factory)
+    {
+    }
 
 protected:
     virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
@@ -97,7 +106,10 @@ class ExplorerActionFactory : public FrontendActionFactory
 
 public:
     ExplorerActionFactory(const std::string &fileName, unsigned offset)
-            : m_fileName(fileName), m_offset(offset) { }
+        : m_fileName(fileName),
+          m_offset(offset)
+    {
+    }
 
     virtual clang::FrontendAction *create();
 
@@ -106,24 +118,23 @@ public:
         return m_stop;
     }
 
-    std::vector<Refactoring *> &refactorings()
-    {
-        return m_refactorings;
-    }
-
+    std::vector<Refactoring *> m_refactorings;
 private:
     const std::string &m_fileName;
     const unsigned m_offset;
     bool m_stop = false;  // no need to parse more source files
-    std::vector<Refactoring *> m_refactorings;
 };
 
-RefactoringManager::RefactoringManager(QObject *parent) : QObject(parent)
+}
+
+RefactoringManager::RefactoringManager(QObject *parent)
+    : QObject(parent)
 {
 }
 
-std::vector<Refactoring *> RefactoringManager::allApplicableRefactorings(
-        RefactoringContext *ctx, const QUrl &sourceFile, const KTextEditor::Cursor &location)
+std::vector<Refactoring *> RefactoringManager::allApplicableRefactorings(RefactoringContext *ctx,
+                                                                         const QUrl &sourceFile,
+                                                                         const KTextEditor::Cursor &location)
 {
     const string filename = sourceFile.toLocalFile().toStdString();
     auto clangTool = ctx->cache->refactoringToolForFile(filename);
@@ -140,12 +151,16 @@ std::vector<Refactoring *> RefactoringManager::allApplicableRefactorings(
     }
     auto faf = cpp::make_unique<ExplorerActionFactory>(filename, offset);
     clangTool.run(faf.get());
-    return std::move(faf->refactorings());
+    return std::move(faf->m_refactorings);
 }
 
 
 ExplorerASTConsumer::ExplorerASTConsumer(ExplorerActionFactory &factory, CompilerInstance &CI)
-        : m_visitor(*this), m_factory(factory), m_CI(CI) { }
+    : m_visitor(*this),
+      m_factory(factory),
+      m_CI(CI)
+{
+}
 
 std::unique_ptr<ASTConsumer> ExplorerAction::CreateASTConsumer(CompilerInstance &CI,
                                                                StringRef InFile)
@@ -187,20 +202,21 @@ bool ExplorerRecursiveASTVisitor::VisitDeclRefExpr(DeclRefExpr *declRefExpr)
 {
     auto range = tokenRangeToCharRange(declRefExpr->getSourceRange(), m_ASTConsumer.m_CI);
     if (isInRange(m_ASTConsumer.m_factory.m_fileName, m_ASTConsumer.m_factory.m_offset, range,
-                  m_ASTConsumer.m_CI.getSourceManager())) {
+                  m_ASTConsumer.m_CI.getSourceManager()))
+    {
         done();
         const VarDecl *varDecl = llvm::dyn_cast<VarDecl>(declRefExpr->getDecl());
         if (!varDecl) {
             clangDebug() << "Found DeclRefExpr, but its declaration is not VarDecl";
             return true;
         }
-        auto cannoDecl = varDecl->getCanonicalDecl();
+        auto canonicalDecl = varDecl->getCanonicalDecl();
         auto file = m_ASTConsumer.m_CI.getSourceManager().getFilename(
-                cannoDecl->getSourceRange().getBegin());
+            canonicalDecl->getSourceRange().getBegin());
         Q_ASSERT(!file.empty());
         auto offset = m_ASTConsumer.m_CI.getSourceManager().getFileOffset(
-                cannoDecl->getSourceRange().getBegin());
-        auto name = cannoDecl->getName().str();
+            canonicalDecl->getSourceRange().getBegin());
+        auto name = canonicalDecl->getName().str();
         addRefactoring(new RenameVarDeclRefactoring(file, offset, name));
         // other options here...
     }
