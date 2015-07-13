@@ -33,15 +33,17 @@
 using InfoPack = ChangeSignatureRefactoring::InfoPack;
 using ChangePack = ChangeSignatureRefactoring::ChangePack;
 
-// TODO: make it modifiable
 class ChangeSignatureDialog::Model : public QAbstractTableModel
 {
     Q_OBJECT;
     Q_DISABLE_COPY(Model);
+
+    friend class ChangeSignatureDialog;
+
 public:
     Model(const InfoPack *infoPack, QObject *parent);
 
-    virtual int rowCount(const QModelIndex &parent) const override;
+    virtual int rowCount(const QModelIndex &parent = QModelIndex()) const override;
 
     virtual int columnCount(const QModelIndex &parent) const override;
 
@@ -58,7 +60,21 @@ public:
         return m_infoPack;
     }
 
+    const ChangePack *changePack() const
+    {
+        return m_changePack;
+    }
+
     void resetChanges();
+
+    void removeRow(int index);
+
+    // Insert before @p index
+    void insertRow(int index);
+
+    void moveRowUp(int index);
+
+    void moveRowDown(int index);
 
 private:
     const InfoPack *const m_infoPack;
@@ -66,7 +82,8 @@ private:
 };
 
 ChangeSignatureDialog::ChangeSignatureDialog(const InfoPack *infoPack, QWidget *parent)
-    : QDialog(parent), m_model(new Model(infoPack, this))
+    : QDialog(parent)
+      , m_model(new Model(infoPack, this))
 {
     setupUi(this);
     reinitializeDialogData();
@@ -74,9 +91,68 @@ ChangeSignatureDialog::ChangeSignatureDialog(const InfoPack *infoPack, QWidget *
     connect(dialogButtonBox->button(QDialogButtonBox::Reset), &QPushButton::clicked, this,
             &ChangeSignatureDialog::reinitializeDialogData);
 
+    // FIXME: add validation
+    // TODO: improve tracking of changes: eliminate dummy changes, track params with changed type
+    connect(dialogButtonBox->button(QDialogButtonBox::Ok), &QPushButton::clicked, this, [this]()
+    {
+        std::string text = returnTypeLineEdit->text().toStdString();
+        if (text != m_model->m_infoPack->returnType()) {
+            m_model->m_changePack->m_newResult = text;
+        }
+        text = functionNameLineEdit->text().toStdString();
+        if (text != m_model->m_infoPack->functionName()) {
+            m_model->m_changePack->m_newName = text;
+        }
+    });
+
     parametersTableView->setModel(m_model);
     parametersTableView->verticalHeader()->hide();
     parametersTableView->horizontalHeader()->setStretchLastSection(true);
+    parametersTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
+
+    connect(removeToolButton, &QToolButton::clicked, this, [this]()
+    {
+        const auto &selection = parametersTableView->selectionModel()->selectedIndexes();
+        if (selection.size() > 0) {
+            m_model->removeRow(selection[0].row());
+        }
+    });
+
+    connect(addToolButton, &QToolButton::clicked, this, [this]()
+    {
+        const auto &selection = parametersTableView->selectionModel()->selectedIndexes();
+        if (selection.size() > 0) {
+            m_model->insertRow(selection[0].row());
+        } else {
+            m_model->insertRow(m_model->rowCount());
+        }
+    });
+
+    connect(upToolButton, &QToolButton::clicked, this, [this]()
+    {
+        const auto &selection = parametersTableView->selectionModel()->selectedIndexes();
+        if (selection.size() > 0) {
+            m_model->moveRowUp(selection[0].row());
+        }
+    });
+
+    connect(downToolButton, &QToolButton::clicked, this, [this]()
+    {
+        const auto &selection = parametersTableView->selectionModel()->selectedIndexes();
+        if (selection.size() > 0) {
+            m_model->moveRowDown(selection[0].row());
+        }
+    });
+}
+
+const InfoPack *ChangeSignatureDialog::infoPack() const
+{
+    return m_model->m_infoPack;
+}
+
+const ChangePack *ChangeSignatureDialog::changePack() const
+{
+    return m_model->m_changePack;
 }
 
 void ChangeSignatureDialog::reinitializeDialogData()
@@ -94,12 +170,16 @@ void ChangeSignatureDialog::reinitializeDialogData()
 //////////////////// CHANGE MODEL
 
 ChangeSignatureDialog::Model::Model(const InfoPack *infoPack, QObject *parent)
-    : QAbstractTableModel(parent), m_infoPack(infoPack), m_changePack(new ChangePack(infoPack)) { }
+    : QAbstractTableModel(parent)
+      , m_infoPack(infoPack)
+      , m_changePack(new ChangePack(infoPack))
+{
+}
 
 int ChangeSignatureDialog::Model::rowCount(const QModelIndex &parent) const
 {
     Q_UNUSED(parent);
-    return static_cast<int>(m_infoPack->parameters().size());
+    return static_cast<int>(m_changePack->m_paramRefs.size());
 }
 
 int ChangeSignatureDialog::Model::columnCount(const QModelIndex &parent) const
@@ -154,6 +234,9 @@ Qt::ItemFlags ChangeSignatureDialog::Model::flags(const QModelIndex &index) cons
 bool ChangeSignatureDialog::Model::setData(const QModelIndex &index, const QVariant &value,
                                            int role)
 {
+    if (value == data(index, role)) {
+        return false;
+    }
     if (role == Qt::EditRole) {
         int row = m_changePack->m_paramRefs[index.row()];
         if (row >= 0) {
@@ -185,6 +268,52 @@ void ChangeSignatureDialog::Model::resetChanges()
     beginResetModel();
     m_changePack = new ChangePack(m_infoPack);
     endResetModel();
+}
+
+void ChangeSignatureDialog::Model::removeRow(int index)
+{
+    beginRemoveRows(QModelIndex(), index, index);
+    // NOTE: this leaks new parameters
+    m_changePack->m_paramRefs.erase(m_changePack->m_paramRefs.begin() + index);
+    endRemoveRows();
+}
+
+void ChangeSignatureDialog::Model::insertRow(int index)
+{
+    Q_ASSERT(index >= 0);
+    // One-after-end is allowed
+    Q_ASSERT(static_cast<std::size_t>(index) <= m_changePack->m_paramRefs.size());
+    beginInsertRows(QModelIndex(), index, index);
+    m_changePack->m_newParam.emplace_back("", "");
+    m_changePack->m_paramRefs.insert(m_changePack->m_paramRefs.begin() + index,
+                                     -static_cast<int>(m_changePack->m_newParam.size()));
+    endInsertRows();
+}
+
+void ChangeSignatureDialog::Model::moveRowUp(int index)
+{
+    if (index == 0) {
+        return;
+    }
+    if (!beginMoveRows(QModelIndex(), index, index, QModelIndex(), index - 1)) {
+        return;
+    }
+    using std::swap;
+    swap(m_changePack->m_paramRefs[index], m_changePack->m_paramRefs[index - 1]);
+    endMoveRows();
+}
+
+void ChangeSignatureDialog::Model::moveRowDown(int index)
+{
+    if (index + 1 == rowCount()) {
+        return;
+    }
+    if (!beginMoveRows(QModelIndex(), index, index, QModelIndex(), index + 2)) {
+        return;
+    }
+    using std::swap;
+    swap(m_changePack->m_paramRefs[index], m_changePack->m_paramRefs[index + 1]);
+    endMoveRows();
 }
 
 #include "changesignaturedialog.moc"

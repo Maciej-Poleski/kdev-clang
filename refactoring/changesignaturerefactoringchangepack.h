@@ -37,6 +37,9 @@ public:
     // nagative value - param from m_newParam at (-v)-1 position
     std::vector<int> m_paramRefs;
     std::vector<std::tuple<std::string, std::string>> m_newParam;
+    // These are empty if not changed
+    std::string m_newResult;
+    std::string m_newName;
 };
 
 

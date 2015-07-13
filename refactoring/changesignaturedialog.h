@@ -42,6 +42,9 @@ class ChangeSignatureDialog : public QDialog, private Ui::ChangeSignatureDialog
 public:
     ChangeSignatureDialog(const InfoPack *infoPack, QWidget *parent = nullptr);
 
+    const InfoPack *infoPack() const;
+    const ChangePack *changePack() const;
+
 private:
     void reinitializeDialogData();
 

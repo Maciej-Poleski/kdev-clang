@@ -35,7 +35,7 @@ ChangeSignatureRefactoring::InfoPack::fromFunctionDecl(const FunctionDecl *funct
 }
 
 ChangeSignatureRefactoring::InfoPack::InfoPack(const FunctionDecl *functionDecl)
-    : m_declComparator(declarationComparator(functionDecl))
+    : m_declComparator(::declarationComparator(functionDecl))
 {
     // We don't rename constructors, destructors, operators (but we may rename type)
     m_restricted = isa<CXXConstructorDecl>(functionDecl) ||

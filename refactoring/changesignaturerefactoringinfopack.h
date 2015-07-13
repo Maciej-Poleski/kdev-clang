@@ -29,6 +29,7 @@
 #include <clang/AST/DeclBase.h>
 
 #include "changesignaturerefactoring.h"
+#include "declarationcomparator.h"
 
 class DeclarationComparator;
 
@@ -56,6 +57,11 @@ public:
     const std::vector<std::tuple<std::string, std::string>> &parameters() const
     {
         return m_parameters;
+    }
+
+    const DeclarationComparator &declarationComparator() const
+    {
+        return *m_declComparator;
     }
 
 private:

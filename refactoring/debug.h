@@ -29,6 +29,7 @@
 Q_DECLARE_LOGGING_CATEGORY(KDEV_CLANG_REFACTORING)
 #define refactorDebug() qCDebug(KDEV_CLANG_REFACTORING)
 #define refactorWarning() qCWarning(KDEV_CLANG_REFACTORING)
+#define refactorCritical() qCCritical(KDEV_CLANG_REFACTORING)
 
 QDebug operator<<(QDebug dbg, const std::string &string);
 QDebug operator<<(QDebug dbg, llvm::StringRef string);
