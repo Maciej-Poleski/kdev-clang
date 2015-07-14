@@ -87,7 +87,7 @@ ecm_add_test(test_renamevar.cpp
         kdevclangrefactor
 )
 
-endif(${BUILD_REFACTORINGS})
+endif()
 
 if(KDEVPLATFORM_JSONTESTS_LIBRARIES)
   configure_file("testfilepaths.h.cmake" "testfilepaths.h" ESCAPE_QUOTES)

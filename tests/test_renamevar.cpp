@@ -54,7 +54,6 @@ void TestRenameVar::testFunctionParams()
         });
     auto d = declCmp.get();
     auto replacements = env.runTool(
-        // Why bind does not work here?
         [d](RefactoringTool &tool)
         {
             return Refactorings::RenameVarDecl::run(d, "counter", tool);
