@@ -63,7 +63,7 @@ clang::tooling::RefactoringTool &DocumentCache::refactoringTool()
 }
 
 clang::tooling::RefactoringTool DocumentCache::refactoringToolForFile(
-        const std::string &fileName)
+    const std::string &fileName)
 {
     // try to prepare RefactoringTool just for @p fileName
     // if we don't have compile command for this file (e.g. it is a header file) then return
@@ -78,8 +78,7 @@ clang::tooling::RefactoringTool DocumentCache::refactoringToolForFile(
         auto result = clang::tooling::RefactoringTool(*ctx->database, {fileName});
         result.mapVirtualFile(fileName, contentOfOpenedFile(fileName));
         return result;
-    }
-    else {
+    } else {
         return refactoringTool();   // a copy of
     }
 }

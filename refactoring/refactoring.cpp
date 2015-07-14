@@ -21,6 +21,7 @@
 
 #include "refactoring.h"
 
-Refactoring::Refactoring(QObject *parent) : QObject(parent)
+Refactoring::Refactoring(QObject *parent)
+    : QObject(parent)
 {
 }

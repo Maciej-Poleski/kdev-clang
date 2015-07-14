@@ -47,8 +47,12 @@ class Renamer : public MatchFinder::MatchCallback
 public:
     Renamer(const std::string &filename, unsigned offset, const std::string &newName,
             Replacements &replacements)
-            : m_filename(filename), m_offset(offset), m_newName(newName),
-              m_replacements(replacements) { }
+        : m_filename(filename)
+          , m_offset(offset)
+          , m_newName(newName)
+          , m_replacements(replacements)
+    {
+    }
 
     virtual void run(MatchFinder::MatchResult const &result) override;
 
@@ -70,11 +74,15 @@ private:
 
 RenameVarDeclRefactoring::RenameVarDeclRefactoring(const std::string &fileName, unsigned offset,
                                                    const std::string &declName, QObject *parent)
-        : Refactoring(parent), m_fileName(fileName), m_offset(offset),
-          m_oldVarDeclName(declName) { }
+    : Refactoring(parent)
+      , m_fileName(fileName)
+      , m_offset(offset)
+      , m_oldVarDeclName(declName)
+{
+}
 
 llvm::ErrorOr<clang::tooling::Replacements> RenameVarDeclRefactoring::invoke(
-        RefactoringContext *ctx)
+    RefactoringContext *ctx)
 {
     auto clangTool = ctx->cache->refactoringTool();
 
@@ -121,8 +129,8 @@ void Renamer::run(const MatchFinder::MatchResult &result)
     CharSourceRange range = CharSourceRange::getTokenRange(varDecl->getSourceRange());
     auto begin = result.SourceManager->getDecomposedLoc(range.getBegin());
     auto end = result.SourceManager->getDecomposedLoc(range.getEnd().getLocWithOffset(
-            Lexer::MeasureTokenLength(range.getEnd(), *result.SourceManager,
-                                      result.Context->getLangOpts())));
+        Lexer::MeasureTokenLength(range.getEnd(), *result.SourceManager,
+                                  result.Context->getLangOpts())));
     auto fileEntry = result.SourceManager->getFileEntryForID(begin.first);
     if (!llvm::sys::fs::equivalent(fileEntry->getName(), m_filename)) {
         return;
