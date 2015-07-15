@@ -34,7 +34,7 @@
 
 // KDevelop
 #include <language/codegen/documentchangeset.h>
-#include <clang/Tooling/Refactoring.h>
+#include <language/util/kdevhash.h>
 
 // refactoring
 #include "documentcache.h"
@@ -89,41 +89,47 @@ clang::SourceRange tokenRangeToCharRange(clang::SourceRange range,
 bool isLocationEqual(const std::string &fileName, unsigned offset, clang::SourceLocation location,
                      const clang::SourceManager &sourceManager);
 
-// comparison of declarations within translation unit
-// - chain of redeclarations (ther locations)
-// - if two chains intersects - the same entity (declarator)
+/* comparison of declarations within translation unit
+ * - chain of redeclarations (their locations)
+ * - if two chains intersects - the same entity (declarator)
+ */
 
-// comparison of declarations with external linkage (global)
-// - like name mangling (templates!!!)
-// - namespaces (also anonymous)
-// - classes (RecordDecl) (also anonymous)
-// - function (full signature)
-// - types (canonical, as function parameters)
-// - templates (classes, functions)
-// - specializations
+/* comparison of declarations with external linkage (global)
+ * - like name mangling (templates!!!)
+ * - namespaces (also anonymous)
+ * - classes (RecordDecl) (also anonymous)
+ * - function (full signature)
+ * - types (canonical, as function parameters)
+ * - templates (classes, functions)
+ * - specializations
+ */
 
-// how to compare:
-// within translation unit:
-// - create chain of locations and for each declaration from each translation unit check if it
-//   intersects (maybe optimize - cache from canonical declaration to chain and cache checked
-//   canonical declarations)
-// global (external non-unique linkage):
-// - generate identifier of selected (canonical?) declaration
-// - compare identifiers
+/* how to compare:
+ * within translation unit:
+ * - create chain of locations and for each declaration from each translation unit check if it
+ *   intersects (maybe optimize - cache from canonical declaration to chain and cache checked
+ *   canonical declarations)
+ * global (external non-unique linkage):
+ * - generate identifier of selected (canonical?) declaration
+ * - compare identifiers
+ */
 
-// anonymous namespaces
-// - in header file - used in many translation units
-//   - separate entities, but lexicaly the same location and the same usages
+/* anonymous namespaces
+ * - in header file - used in many translation units
+ *   - separate entities, but lexicaly the same location and the same usages
+ */
 
-// external linkage requires global view
-// the rest (entities) are visible only in translation unit
-//   but may be lexicaly used in many translation units (header files)
+/* external linkage requires global view
+ * the rest (entities) are visible only in translation unit
+ *   but may be lexicaly used in many translation units (header files)
+ */
 
-// ALGO:
-// 0. generate chain (non external) or identifier (external linkage)
-// We have TU:
-// 1. visit all declarations (usages included)
-// 1.1. check correspondence with chain (or identifier)
+/* ALGO:
+ * 0. generate chain (non external) or identifier (external linkage)
+ * We have TU:
+ * 1. visit all declarations (usages included)
+ * 1.1. check correspondence with chain (or identifier)
+ */
 
 // TU dispatcher - keeps chain/identifier and cache of seen declarations (canonical)
 
@@ -147,7 +153,7 @@ struct hash<LexicalLocation>
     {
         auto h1 = hash<string>()(o.fileName);
         auto h2 = hash<unsigned>()(o.offset);
-        return h1 ^ (h2 << 1);
+        return KDevHash() << h1 << h2;
     }
 };
 }

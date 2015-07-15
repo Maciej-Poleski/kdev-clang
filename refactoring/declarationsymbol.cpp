@@ -173,7 +173,8 @@ bool DeclarationSymbol::equivalentTo(const clang::Decl *decl) const
 SymbolPart::~SymbolPart() = default;
 
 ClassTemplateSpecializationSymbolPart::ClassTemplateSpecializationSymbolPart(
-    const ClassTemplateSpecializationDecl *spec) : m_name(spec->getName())
+    const ClassTemplateSpecializationDecl *spec)
+    : m_name(spec->getName())
 {
     const TemplateArgumentList &args = spec->getTemplateArgs();
     for (const auto &arg : args.asArray()) {
@@ -214,7 +215,7 @@ bool NamespaceSymbolPart::canBe(const SymbolPart &other) const
 
 bool NamespaceSymbolPart::noScope() const
 {
-    return m_name == "";
+    return m_name.empty();
 }
 
 RecordDeclSymbolPart::RecordDeclSymbolPart(const RecordDecl *record)
@@ -233,7 +234,7 @@ bool RecordDeclSymbolPart::canBe(const SymbolPart &other) const
 
 bool RecordDeclSymbolPart::noScope() const
 {
-    return m_name == "";
+    return m_name.empty();
 }
 
 FunctionSymbolPart::FunctionSymbolPart(const FunctionDecl *function)
@@ -280,6 +281,6 @@ bool NameSymbolPart::canBe(const SymbolPart &other) const
 
 bool NameSymbolPart::noScope() const
 {
-    return m_name == "";
+    return m_name.empty();
 }
 

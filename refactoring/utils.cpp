@@ -302,7 +302,7 @@ bool operator==(const LexicalLocation &lhs, const LexicalLocation &rhs)
 
 LexicalLocation lexicalLocation(const Decl *decl)
 {
-    auto &srcMgr = decl->getASTContext().getSourceManager();
+    const auto &srcMgr = decl->getASTContext().getSourceManager();
     auto location = srcMgr.getDecomposedLoc(decl->getLocStart());
     auto fileEntry = srcMgr.getFileEntryForID(location.first);
     if (fileEntry == nullptr) {
