@@ -49,8 +49,12 @@ class Renamer : public MatchFinder::MatchCallback
 public:
     Renamer(const std::string &fileName, unsigned offset, const std::string &newName,
             Replacements &replacements)
-            : m_fileName(fileName), m_fileOffset(offset), m_newName(newName),
-              m_replacements(replacements) { }
+        : m_fileName(fileName)
+          , m_fileOffset(offset)
+          , m_newName(newName)
+          , m_replacements(replacements)
+    {
+    }
 
     virtual void run(const MatchFinder::MatchResult &result) override;
 
@@ -74,11 +78,15 @@ private:
 RenameFieldDeclTURefactoring::RenameFieldDeclTURefactoring(const std::string &fileName,
                                                            unsigned offset,
                                                            llvm::StringRef oldName)
-        : Refactoring(nullptr), m_fileName(fileName), m_fileOffset(offset),
-          m_oldFieldDeclName(oldName) { }
+    : Refactoring(nullptr)
+      , m_fileName(fileName)
+      , m_fileOffset(offset)
+      , m_oldFieldDeclName(oldName)
+{
+}
 
 llvm::ErrorOr<clang::tooling::Replacements> RenameFieldDeclTURefactoring::invoke(
-        RefactoringContext *ctx)
+    RefactoringContext *ctx)
 {
     auto &clangTool = ctx->cache->refactoringTool();
 

@@ -47,7 +47,11 @@ class Renamer : public MatchFinder::MatchCallback
 {
 public:
     Renamer(const std::string &oldQualName, const std::string &newName, Replacements &replacements)
-            : m_oldQualName(oldQualName), m_newName(newName), m_replacements(replacements) { }
+        : m_oldQualName(oldQualName)
+          , m_newName(newName)
+          , m_replacements(replacements)
+    {
+    }
 
     virtual void run(const MatchFinder::MatchResult &result) override;
 
@@ -69,11 +73,14 @@ private:
 
 RenameFieldDeclRefactoring::RenameFieldDeclRefactoring(const std::string &oldName,
                                                        std::string oldQualName)
-        : Refactoring(nullptr), m_oldFieldDeclName(oldName),
-          m_oldQualName(std::move(oldQualName)) { }
+    : Refactoring(nullptr)
+      , m_oldFieldDeclName(oldName)
+      , m_oldQualName(std::move(oldQualName))
+{
+}
 
 llvm::ErrorOr<clang::tooling::Replacements> RenameFieldDeclRefactoring::invoke(
-        RefactoringContext *ctx)
+    RefactoringContext *ctx)
 {
     auto &clangTool = ctx->cache->refactoringTool();
 
