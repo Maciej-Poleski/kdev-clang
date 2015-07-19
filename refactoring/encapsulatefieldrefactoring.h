@@ -26,6 +26,7 @@
 #include <clang/AST/DeclBase.h>
 
 #include "refactoring.h"
+#include "redeclarationchain.h"
 
 /**
  * This refactoring makes slightly stronger assumptions about code base.
@@ -47,6 +48,8 @@ public:
 
 private:
     std::unique_ptr<ChangePack> m_changePack;
+    RedeclarationChain m_declDispatcher;
+    const bool m_isStatic;
 };
 
 
