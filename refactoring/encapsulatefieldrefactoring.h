@@ -49,7 +49,7 @@ public:
 private:
     std::unique_ptr<ChangePack> m_changePack;
     RedeclarationChain m_declDispatcher;
-    const bool m_isStatic;
+    RedeclarationChain m_recordDeclDispatcher;
 };
 
 

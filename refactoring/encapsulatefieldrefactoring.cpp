@@ -48,9 +48,10 @@ class Translator : public MatchFinder::MatchCallback
     using ChangePack = EncapsulateFieldRefactoring::ChangePack;
 public:
     Translator(Replacements &replacements, ChangePack *changePack,
-               RedeclarationChain *declDispatcher);
+               RedeclarationChain *declDispatcher, RedeclarationChain *recordDeclDispatcher);
 
     virtual void run(const MatchFinder::MatchResult &Result) override;
+    virtual void onEndOfTranslationUnit() override;
 
     void handleDeclRefExpr(const DeclRefExpr *declRefExpr, SourceManager *sourceManager,
                            const LangOptions &langOpts);
@@ -62,11 +63,22 @@ public:
                                   SourceManager *sourceManager, const LangOptions &langOpts);
     void handleAssignOperatorCall(const CXXOperatorCallExpr *operatorCallExpr,
                                   SourceManager *sourceManager, const LangOptions &langOpts);
+    void handleAccessSpecDecl(const AccessSpecDecl *accessSpecDecl, SourceManager *sourceManager,
+                              const LangOptions &langOpts);
+    void handleFieldDecl(const Decl *fieldDecl, SourceManager *sourceManager,
+                         const LangOptions &langOpts);
 
 private:
     Replacements &m_replacements;
     ChangePack *m_changePack;
     TUDeclDispatcher m_declDispatcher;
+    TUDeclDispatcher m_recordDeclDispatcher;
+    vector<tuple<AccessSpecifier, SourceLocation>> m_accessSpecifiers;
+    SourceLocation m_lastLocationInRecordDecl;
+    SourceLocation m_firstLocationInRecordDecl;
+    ASTContext *m_astContext;
+    bool m_recordHandled = false;
+    bool m_skipRecord = false;
 };
 }
 
@@ -74,10 +86,8 @@ EncapsulateFieldRefactoring::EncapsulateFieldRefactoring(const DeclaratorDecl *d
     : Refactoring(nullptr)
       , m_changePack(ChangePack::fromDeclaratorDecl(decl))
       , m_declDispatcher(decl)
-      , m_isStatic(!llvm::isa<FieldDecl>(decl))
+      , m_recordDeclDispatcher(llvm::dyn_cast<Decl>(decl->getDeclContext()))
 {
-    decl->dump();
-    decl->getCanonicalDecl()->dump();
 }
 
 EncapsulateFieldRefactoring::~EncapsulateFieldRefactoring() = default;
@@ -130,11 +140,13 @@ llvm::ErrorOr<clang::tooling::Replacements> EncapsulateFieldRefactoring::invoke(
     // rewriting a+=b to setA(getA()+b), but such implementation would have to explicitly list
     // all operators
 
-    // FIXME: handle also declaration
+    auto accessSpec = accessSpecDecl().bind("AccessSpecDecl");
+    auto fieldDecl = decl().bind("FieldDecl");
 
     auto &tool = ctx->cache->refactoringTool();
     MatchFinder finder;
-    Translator callback(tool.getReplacements(), m_changePack.get(), &m_declDispatcher);
+    Translator callback(tool.getReplacements(), m_changePack.get(), &m_declDispatcher,
+                        &m_recordDeclDispatcher);
     // Choose appropriate set depending on static/instance and get/set
     if (m_changePack->createSetter()) {
         finder.addMatcher(nonAssignDeclRefExpr, &callback);
@@ -146,6 +158,8 @@ llvm::ErrorOr<clang::tooling::Replacements> EncapsulateFieldRefactoring::invoke(
         finder.addMatcher(pureDeclRefExpr, &callback);
         finder.addMatcher(pureMemberExpr, &callback);
     }
+    finder.addMatcher(accessSpec, &callback);
+    finder.addMatcher(fieldDecl, &callback);
     tool.run(newFrontendActionFactory(&finder).get());
 
     return tool.getReplacements();
@@ -157,10 +171,11 @@ QString EncapsulateFieldRefactoring::name() const
 }
 
 Translator::Translator(Replacements &replacements, ChangePack *changePack,
-                       RedeclarationChain *declDispatcher)
+                       RedeclarationChain *declDispatcher, RedeclarationChain *recordDeclDispatcher)
     : m_replacements(replacements)
       , m_changePack(changePack)
       , m_declDispatcher(declDispatcher)
+      , m_recordDeclDispatcher(recordDeclDispatcher)
 {
 }
 
@@ -175,18 +190,21 @@ void Translator::run(const MatchFinder::MatchResult &Result)
     auto memberExpr = Result.Nodes.getNodeAs<MemberExpr>("MemberExpr");
     if (memberExpr && m_declDispatcher.equivalent(memberExpr->getMemberDecl())) {
         handleMemberExpr(memberExpr, Result.SourceManager, Result.Context->getLangOpts());
+        return;
     }
     auto assignDeclRefExpr = Result.Nodes.getNodeAs<BinaryOperator>("AssignDeclRefExpr");
     if (assignDeclRefExpr && m_declDispatcher.equivalent(
         llvm::dyn_cast<DeclRefExpr>(assignDeclRefExpr->getLHS())->getDecl())) {
         handleAssignToDeclRefExpr(assignDeclRefExpr, Result.SourceManager,
                                   Result.Context->getLangOpts());
+        return;
     }
     auto assignMemberExpr = Result.Nodes.getNodeAs<BinaryOperator>("AssignMemberExpr");
     if (assignMemberExpr && m_declDispatcher.equivalent(
         llvm::dyn_cast<MemberExpr>(assignMemberExpr->getLHS())->getMemberDecl())) {
         handleAssignToMemberExpr(assignMemberExpr, Result.SourceManager,
                                  Result.Context->getLangOpts());
+        return;
     }
     auto assignOperatorCall = Result.Nodes.getNodeAs<CXXOperatorCallExpr>(
         "AssignCXXOperatorCallExpr");
@@ -203,6 +221,22 @@ void Translator::run(const MatchFinder::MatchResult &Result)
             handleAssignOperatorCall(assignOperatorCall, Result.SourceManager,
                                      Result.Context->getLangOpts());
         }
+        return;
+    }
+    auto accessSpecDecl = Result.Nodes.getNodeAs<AccessSpecDecl>("AccessSpecDecl");
+    if (accessSpecDecl && m_recordDeclDispatcher.equivalent(accessSpecDecl->getDeclContext())) {
+        if (!m_skipRecord) {
+            handleAccessSpecDecl(accessSpecDecl, Result.SourceManager,
+                                 Result.Context->getLangOpts());
+        }
+        return;
+    }
+    auto fieldDecl = Result.Nodes.getNodeAs<Decl>("FieldDecl");
+    if (fieldDecl && m_declDispatcher.equivalent(fieldDecl)) {
+        if (!m_skipRecord) {
+            handleFieldDecl(fieldDecl, Result.SourceManager, Result.Context->getLangOpts());
+        }
+        return;
     }
 }
 
@@ -267,5 +301,193 @@ void Translator::handleAssignOperatorCall(const CXXOperatorCallExpr *operatorCal
                     CharSourceRange::getTokenRange(location, operatorCallExpr->getLocEnd()),
                     m_changePack->setterName() + "(" +
                     codeFromASTNode(operatorCallExpr->getArg(1), *sourceManager, langOpts) + ")"));
+}
+
+void Translator::onEndOfTranslationUnit()
+{
+    if (!m_skipRecord && m_recordHandled) {
+        m_skipRecord = true;
+
+        // insert code
+        auto accessComparator = [](AccessSpecifier spec)
+        {
+            return [spec](const tuple<AccessSpecifier, SourceLocation> &t)
+            {
+                return get<0>(t) == spec;
+            };
+        };
+        auto locationFromIterator = [this](
+            decltype(m_accessSpecifiers)::reverse_iterator i)
+        {
+            if (i != m_accessSpecifiers.rbegin()) {
+                return get<1>(*(i - 1));
+            } else {
+                return m_lastLocationInRecordDecl;
+            }
+        };
+        SourceLocation publicLocation;
+        SourceLocation protectedLocation;
+        SourceLocation privateLocation = !m_accessSpecifiers.empty() ? get<1>(m_accessSpecifiers[0])
+                                                                     : m_lastLocationInRecordDecl;
+        auto i = find_if(m_accessSpecifiers.rbegin(), m_accessSpecifiers.rend(),
+                         accessComparator(AccessSpecifier::AS_public));
+        if (i != m_accessSpecifiers.rend()) {
+            publicLocation = locationFromIterator(i);
+        }
+        i = find_if(m_accessSpecifiers.rbegin(), m_accessSpecifiers.rend(),
+                    accessComparator(AccessSpecifier::AS_protected));
+        if (i != m_accessSpecifiers.rend()) {
+            protectedLocation = locationFromIterator(i);
+        }
+        i = find_if(m_accessSpecifiers.rbegin(), m_accessSpecifiers.rend(),
+                    accessComparator(AccessSpecifier::AS_private));
+        if (i != m_accessSpecifiers.rend()) {
+            privateLocation = locationFromIterator(i);
+        }
+        auto accessorImplementation = [this]
+        {
+            string result;
+            if (m_changePack->isStatic()) {
+                result = "static ";
+            }
+            switch (m_changePack->accessorStyle()) {
+            case ChangePack::AccessorStyle::ConstReference:
+                result += "const " + m_changePack->fieldType() + "&";
+                break;
+            case ChangePack::AccessorStyle::Value:
+                result += m_changePack->fieldType();
+                break;
+            default:
+                Q_ASSERT(false && "Non exhausting match");
+            }
+            result += " " + m_changePack->getterName() + "() const\n";
+            result += "{\n";
+            result += "\treturn " + m_changePack->fieldName() + ";\n";
+            result += "}\n";
+            return result;
+        };
+        auto mutatorImplementation = [this]
+        {
+            string result;
+            if (m_changePack->isStatic()) {
+                result = "static ";
+            }
+            result += "void " + m_changePack->setterName() + "(const " + m_changePack->fieldType() +
+                      " &" + m_changePack->fieldName() + ")\n";
+            result += "{\n";
+            result += "\tthis->" + m_changePack->fieldName() + " = " + m_changePack->fieldName() +
+                      ";\n";
+            // FIXME: cannot use this-> in static function
+            result += "}\n";
+            return result;
+        };
+        if (m_changePack->getterAccess() == AS_public ||
+            m_changePack->setterAccess() == AS_public) {
+            string change;
+            if (m_changePack->getterAccess() == AS_public) {
+                change = accessorImplementation();
+            }
+            if (m_changePack->setterAccess() == AS_public) {
+                change += "\n" + mutatorImplementation();
+            }
+            if (publicLocation.isInvalid()) {
+                publicLocation = m_firstLocationInRecordDecl; // FIXME: This location is probably wrong
+                change = "public:\n" + change;
+            }
+            m_replacements.insert(
+                Replacement(m_astContext->getSourceManager(), publicLocation, 0, change + "\n"));
+        }
+        if (m_changePack->getterAccess() == AS_protected ||
+            m_changePack->setterAccess() == AS_protected) {
+            string change;
+            if (m_changePack->getterAccess() == AS_protected) {
+                change = accessorImplementation();
+            }
+            if (m_changePack->setterAccess() == AS_protected) {
+                change += "\n" + mutatorImplementation();
+            }
+            if (protectedLocation.isInvalid()) {
+                if (publicLocation.isInvalid()) {
+                    publicLocation = m_firstLocationInRecordDecl;
+                    // FIXME: This location is probably wrong
+                }
+                protectedLocation = publicLocation;
+                change = "protected:\n" + change;
+            }
+            m_replacements.insert(
+                Replacement(m_astContext->getSourceManager(), protectedLocation, 0, change + "\n"));
+        }
+        if (m_changePack->getterAccess() == AS_private ||
+            m_changePack->setterAccess() == AS_private) {
+            string change;
+            if (m_changePack->getterAccess() == AS_private) {
+                change = accessorImplementation();
+            }
+            if (m_changePack->setterAccess() == AS_private) {
+                change += "\n" + mutatorImplementation();
+            }
+            // It is always possible to get private location (FIXME: but beware difference struct/class)
+            m_replacements.insert(
+                Replacement(m_astContext->getSourceManager(), privateLocation, 0, change + "\n"));
+        }
+
+        m_accessSpecifiers.clear();
+        m_accessSpecifiers.shrink_to_fit(); // This vector will not be used anymore
+    }
+}
+
+void Translator::handleAccessSpecDecl(const AccessSpecDecl *accessSpecDecl,
+                                      SourceManager *sourceManager, const LangOptions &langOpts)
+{
+    m_recordHandled = true;
+    m_accessSpecifiers.emplace_back(accessSpecDecl->getAccess(), accessSpecDecl->getLocStart());
+}
+
+static string describeAccessSpecifier(AccessSpecifier accessSpecifier)
+{
+    switch (accessSpecifier) {
+    case AS_public:
+        return "public";
+    case AS_protected:
+        return "protected";
+    case AS_private:
+        return "private";
+    default:
+        Q_ASSERT(false && "This code is not meant to work on AS_none access specifier");
+        return "none";
+    }
+}
+
+namespace clang
+{
+namespace arcmt
+{
+namespace trans
+{
+// From ARCMigrate
+SourceLocation findSemiAfterLocation(SourceLocation loc, ASTContext &Ctx,
+                                     bool IsDecl = false);
+}
+}
+}
+
+using clang::arcmt::trans::findSemiAfterLocation;
+
+void Translator::handleFieldDecl(const Decl *fieldDecl, SourceManager *sourceManager,
+                                 const LangOptions &langOpts)
+{
+    m_recordHandled = true;
+    auto oldAccess = fieldDecl->getAccess();
+    string oldAccessSpec = describeAccessSpecifier(oldAccess) + ":";
+    m_replacements.insert(
+        Replacement(*sourceManager,
+                    findSemiAfterLocation(fieldDecl->getLocEnd(), fieldDecl->getASTContext(), true),
+                    1, ";\n\n" + oldAccessSpec));
+    m_replacements.insert(Replacement(*sourceManager, fieldDecl->getLocStart(), 0, "private:\n"));
+    // skipping whitespaces (to some extent...) above would be nice, but also unwisely complicated
+    auto recordDecl = llvm::dyn_cast<RecordDecl>(fieldDecl->getDeclContext());
+    m_lastLocationInRecordDecl = recordDecl->getRBraceLoc();
+    m_firstLocationInRecordDecl = recordDecl->getLocation();
+    m_astContext = &fieldDecl->getASTContext();
 }
 

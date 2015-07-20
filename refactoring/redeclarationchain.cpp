@@ -28,8 +28,6 @@ using namespace clang;
 
 RedeclarationChain::RedeclarationChain(const clang::Decl *declNode)
 {
-    Q_ASSERT((llvm::dyn_cast<NamedDecl>(declNode) == nullptr) ||
-             (llvm::dyn_cast<NamedDecl>(declNode)->getLinkageInternal() != ExternalLinkage));
     for (auto decl : declNode->redecls()) {
         auto loc = lexicalLocation(decl);
         if (loc.fileName.empty()) {
@@ -51,11 +49,5 @@ bool RedeclarationChain::intersects(const RedeclarationChain &other) const
 
 bool RedeclarationChain::equivalentTo(const Decl *decl) const
 {
-    if (const NamedDecl *namedDecl = llvm::dyn_cast<NamedDecl>(decl)) {
-        auto linkage = namedDecl->getLinkageInternal();
-        if (linkage == ExternalLinkage) {
-            return false;
-        }
-    }
     return intersects(RedeclarationChain(decl));
 }

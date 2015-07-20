@@ -42,9 +42,10 @@ public:
     };
 
     ChangePack(const std::string &fieldDescription, const std::string &fieldType,
-               const std::string &getterName, const std::string &setterName,
-               clang::AccessSpecifier getterAccess, clang::AccessSpecifier setterAccess,
-               AccessorStyle accessorStyle, bool createSetter);
+               const std::string &fieldName, const std::string &getterName,
+               const std::string &setterName, clang::AccessSpecifier getterAccess,
+               clang::AccessSpecifier setterAccess, AccessorStyle accessorStyle, bool createSetter,
+               bool isStatic);
 
     static std::unique_ptr<ChangePack> fromDeclaratorDecl(const clang::DeclaratorDecl *decl);
 
@@ -54,9 +55,19 @@ public:
         return m_fieldDescription;
     }
 
+    bool isStatic() const
+    {
+        return m_isStatic;
+    }
+
     const std::string &fieldType() const
     {
         return m_fieldType;
+    }
+
+    const std::string &fieldName() const
+    {
+        return m_fieldName;
     }
 
     const std::string &getterName() const
@@ -122,12 +133,14 @@ public:
 private:
     const std::string m_fieldDescription;
     const std::string m_fieldType;
+    const std::string m_fieldName;
     std::string m_getterName;
     std::string m_setterName;
     clang::AccessSpecifier m_getterAccess;
     clang::AccessSpecifier m_setterAccess;
     AccessorStyle m_accessorStyle;
     bool m_createSetter;
+    bool m_isStatic;
 };
 
 

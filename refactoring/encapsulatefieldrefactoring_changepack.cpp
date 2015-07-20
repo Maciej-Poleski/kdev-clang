@@ -31,19 +31,23 @@ using namespace clang;
 
 EncapsulateFieldRefactoring::ChangePack::ChangePack(const std::string &fieldDescription,
                                                     const std::string &fieldType,
+                                                    const std::string &fieldName,
                                                     const std::string &getterName,
                                                     const std::string &setterName,
                                                     clang::AccessSpecifier getterAccess,
                                                     clang::AccessSpecifier setterAccess,
-                                                    AccessorStyle accessorStyle, bool createSetter)
+                                                    AccessorStyle accessorStyle, bool createSetter,
+                                                    bool isStatic)
     : m_fieldDescription(fieldDescription)
       , m_fieldType(fieldType)
+      , m_fieldName(fieldName)
       , m_getterName(getterName)
       , m_setterName(setterName)
       , m_getterAccess(getterAccess)
       , m_setterAccess(setterAccess)
       , m_accessorStyle(accessorStyle)
       , m_createSetter(createSetter)
+      , m_isStatic(isStatic)
 {
 }
 
@@ -57,9 +61,11 @@ EncapsulateFieldRefactoring::ChangePack::fromDeclaratorDecl(const DeclaratorDecl
     auto fieldQualType = decl->getType().getNonReferenceType();
     fieldQualType.removeLocalConst();
     auto fieldTypeString = fieldQualType.getAsString();
-    string getterName = suggestGetterName(decl->getName());
-    string setterName = suggestSetterName(decl->getName());
+    auto fieldName = decl->getName();
+    string getterName = suggestGetterName(fieldName);
+    string setterName = suggestSetterName(fieldName);
     return unique_ptr<ChangePack>(
-        new ChangePack{fieldDescription, fieldTypeString, getterName, setterName, currentAccess,
-                       currentAccess, AccessorStyle::ConstReference, true});
+        new ChangePack{fieldDescription, fieldTypeString, fieldName, getterName, setterName,
+                       currentAccess, currentAccess, AccessorStyle::ConstReference, true,
+                       !llvm::isa<FieldDecl>(decl)});
 }
