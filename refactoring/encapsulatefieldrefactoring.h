@@ -28,6 +28,8 @@
 #include "refactoring.h"
 #include "redeclarationchain.h"
 
+class DeclarationComparator;
+
 /**
  * This refactoring makes slightly stronger assumptions about code base.
  * Particularly it assumes, that all RecordDecls being subject of this refactoring have _one_
@@ -50,7 +52,19 @@ private:
     std::unique_ptr<ChangePack> m_changePack;
     RedeclarationChain m_declDispatcher;
     RedeclarationChain m_recordDeclDispatcher;
+    std::string m_recordName;
 };
 
+namespace Refactorings
+{
+namespace EncapsulateField
+{
+using ChangePack=EncapsulateFieldRefactoring::ChangePack;
+
+int run(clang::tooling::RefactoringTool &tool, const ChangePack *changePack,
+        const DeclarationComparator *declDispatcher,
+        const DeclarationComparator *recordDeclDispatcher, const std::string &recordName);
+}
+}
 
 #endif //KDEV_CLANG_ENCAPSULATEFIELDREFACTORING_H

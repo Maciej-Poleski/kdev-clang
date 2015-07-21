@@ -32,7 +32,6 @@
 #include "encapsulatefielddialog.h"
 #include "encapsulatefieldrefactoring_changepack.h"
 #include "refactoringcontext.h"
-#include "redeclarationchain.h"
 #include "tudecldispatcher.h"
 #include "utils.h"
 
@@ -47,8 +46,9 @@ class Translator : public MatchFinder::MatchCallback
 {
     using ChangePack = EncapsulateFieldRefactoring::ChangePack;
 public:
-    Translator(Replacements &replacements, ChangePack *changePack,
-               RedeclarationChain *declDispatcher, RedeclarationChain *recordDeclDispatcher);
+    Translator(Replacements &replacements, const ChangePack *changePack,
+               const DeclarationComparator *declDispatcher,
+               const DeclarationComparator *recordDeclDispatcher, const string &recordName);
 
     virtual void run(const MatchFinder::MatchResult &Result) override;
     virtual void onEndOfTranslationUnit() override;
@@ -70,9 +70,10 @@ public:
 
 private:
     Replacements &m_replacements;
-    ChangePack *m_changePack;
+    const ChangePack *m_changePack;
     TUDeclDispatcher m_declDispatcher;
     TUDeclDispatcher m_recordDeclDispatcher;
+    const string &m_recordName;
     vector<tuple<AccessSpecifier, SourceLocation>> m_accessSpecifiers;
     SourceLocation m_lastLocationInRecordDecl;
     SourceLocation m_firstLocationInRecordDecl;
@@ -87,6 +88,7 @@ EncapsulateFieldRefactoring::EncapsulateFieldRefactoring(const DeclaratorDecl *d
       , m_changePack(ChangePack::fromDeclaratorDecl(decl))
       , m_declDispatcher(decl)
       , m_recordDeclDispatcher(llvm::dyn_cast<Decl>(decl->getDeclContext()))
+      , m_recordName(llvm::dyn_cast<RecordDecl>(decl->getDeclContext())->getName())
 {
 }
 
@@ -100,6 +102,24 @@ llvm::ErrorOr<clang::tooling::Replacements> EncapsulateFieldRefactoring::invoke(
         return cancelledResult();
     }
 
+    auto &tool = ctx->cache->refactoringTool();
+
+    Refactorings::EncapsulateField::run(tool, m_changePack.get(), &m_declDispatcher,
+                                        &m_recordDeclDispatcher, m_recordName);
+
+    return tool.getReplacements();
+}
+
+namespace Refactorings
+{
+namespace EncapsulateField
+{
+using ChangePack = EncapsulateFieldRefactoring::ChangePack;
+
+int run(RefactoringTool &tool, const ChangePack *changePack,
+        const DeclarationComparator *declDispatcher,
+        const DeclarationComparator *recordDeclDispatcher, const string &recordName)
+{
     auto pureDeclRefExpr = declRefExpr().bind("DeclRefExpr");   // static
     auto pureMemberExpr = memberExpr().bind("MemberExpr");      // instance
 
@@ -143,12 +163,11 @@ llvm::ErrorOr<clang::tooling::Replacements> EncapsulateFieldRefactoring::invoke(
     auto accessSpec = accessSpecDecl().bind("AccessSpecDecl");
     auto fieldDecl = decl().bind("FieldDecl");
 
-    auto &tool = ctx->cache->refactoringTool();
     MatchFinder finder;
-    Translator callback(tool.getReplacements(), m_changePack.get(), &m_declDispatcher,
-                        &m_recordDeclDispatcher);
+    Translator callback(tool.getReplacements(), changePack, declDispatcher,
+                        recordDeclDispatcher, recordName);
     // Choose appropriate set depending on static/instance and get/set
-    if (m_changePack->createSetter()) {
+    if (changePack->createSetter()) {
         finder.addMatcher(nonAssignDeclRefExpr, &callback);
         finder.addMatcher(nonAssignMemberExpr, &callback);
         finder.addMatcher(assignDeclRefExpr, &callback);
@@ -160,9 +179,9 @@ llvm::ErrorOr<clang::tooling::Replacements> EncapsulateFieldRefactoring::invoke(
     }
     finder.addMatcher(accessSpec, &callback);
     finder.addMatcher(fieldDecl, &callback);
-    tool.run(newFrontendActionFactory(&finder).get());
-
-    return tool.getReplacements();
+    return tool.run(newFrontendActionFactory(&finder).get());
+}
+}
 }
 
 QString EncapsulateFieldRefactoring::name() const
@@ -170,12 +189,14 @@ QString EncapsulateFieldRefactoring::name() const
     return i18n("encapsulate");
 }
 
-Translator::Translator(Replacements &replacements, ChangePack *changePack,
-                       RedeclarationChain *declDispatcher, RedeclarationChain *recordDeclDispatcher)
+Translator::Translator(Replacements &replacements, const ChangePack *changePack,
+                       const DeclarationComparator *declDispatcher,
+                       const DeclarationComparator *recordDeclDispatcher, const string &recordName)
     : m_replacements(replacements)
       , m_changePack(changePack)
       , m_declDispatcher(declDispatcher)
       , m_recordDeclDispatcher(recordDeclDispatcher)
+      , m_recordName(recordName)
 {
 }
 
@@ -375,55 +396,57 @@ void Translator::onEndOfTranslationUnit()
             result += "void " + m_changePack->setterName() + "(const " + m_changePack->fieldType() +
                       " &" + m_changePack->fieldName() + ")\n";
             result += "{\n";
-            result += "\tthis->" + m_changePack->fieldName() + " = " + m_changePack->fieldName() +
-                      ";\n";
-            // FIXME: cannot use this-> in static function
+            if (!m_changePack->isStatic()) {
+                result += "this->";
+            } else {
+                result += m_recordName + "::";
+            }
+            result += m_changePack->fieldName() + " = " + m_changePack->fieldName() + ";\n";
             result += "}\n";
             return result;
         };
         if (m_changePack->getterAccess() == AS_public ||
-            m_changePack->setterAccess() == AS_public) {
+            (m_changePack->createSetter() && m_changePack->setterAccess() == AS_public)) {
             string change;
             if (m_changePack->getterAccess() == AS_public) {
                 change = accessorImplementation();
             }
-            if (m_changePack->setterAccess() == AS_public) {
+            if (m_changePack->createSetter() && m_changePack->setterAccess() == AS_public) {
                 change += "\n" + mutatorImplementation();
             }
             if (publicLocation.isInvalid()) {
-                publicLocation = m_firstLocationInRecordDecl; // FIXME: This location is probably wrong
-                change = "public:\n" + change;
+                publicLocation = m_firstLocationInRecordDecl;
+                change = "public:\n" + change + "private:\n";
             }
             m_replacements.insert(
                 Replacement(m_astContext->getSourceManager(), publicLocation, 0, change + "\n"));
         }
         if (m_changePack->getterAccess() == AS_protected ||
-            m_changePack->setterAccess() == AS_protected) {
+            (m_changePack->createSetter() && m_changePack->setterAccess() == AS_protected)) {
             string change;
             if (m_changePack->getterAccess() == AS_protected) {
                 change = accessorImplementation();
             }
-            if (m_changePack->setterAccess() == AS_protected) {
+            if (m_changePack->createSetter() && m_changePack->setterAccess() == AS_protected) {
                 change += "\n" + mutatorImplementation();
             }
             if (protectedLocation.isInvalid()) {
                 if (publicLocation.isInvalid()) {
                     publicLocation = m_firstLocationInRecordDecl;
-                    // FIXME: This location is probably wrong
                 }
                 protectedLocation = publicLocation;
-                change = "protected:\n" + change;
+                change = "protected:\n" + change + "private:\n";
             }
             m_replacements.insert(
                 Replacement(m_astContext->getSourceManager(), protectedLocation, 0, change + "\n"));
         }
         if (m_changePack->getterAccess() == AS_private ||
-            m_changePack->setterAccess() == AS_private) {
+            (m_changePack->createSetter() && m_changePack->setterAccess() == AS_private)) {
             string change;
             if (m_changePack->getterAccess() == AS_private) {
                 change = accessorImplementation();
             }
-            if (m_changePack->setterAccess() == AS_private) {
+            if (m_changePack->createSetter() && m_changePack->setterAccess() == AS_private) {
                 change += "\n" + mutatorImplementation();
             }
             // It is always possible to get private location (FIXME: but beware difference struct/class)
@@ -478,16 +501,28 @@ void Translator::handleFieldDecl(const Decl *fieldDecl, SourceManager *sourceMan
 {
     m_recordHandled = true;
     auto oldAccess = fieldDecl->getAccess();
-    string oldAccessSpec = describeAccessSpecifier(oldAccess) + ":";
-    m_replacements.insert(
-        Replacement(*sourceManager,
-                    findSemiAfterLocation(fieldDecl->getLocEnd(), fieldDecl->getASTContext(), true),
-                    1, ";\n\n" + oldAccessSpec));
-    m_replacements.insert(Replacement(*sourceManager, fieldDecl->getLocStart(), 0, "private:\n"));
-    // skipping whitespaces (to some extent...) above would be nice, but also unwisely complicated
+    if (oldAccess != AS_private) {
+        string oldAccessSpec = describeAccessSpecifier(oldAccess) + ":";
+        m_replacements.insert(
+            Replacement(*sourceManager,
+                        findSemiAfterLocation(fieldDecl->getLocEnd(), fieldDecl->getASTContext(),
+                                              true),
+                        1, ";\n\n" + oldAccessSpec));
+        m_replacements.insert(
+            Replacement(*sourceManager, fieldDecl->getLocStart(), 0, "private:\n"));
+        // skipping whitespaces (to some extent...) above would be nice, but also unwisely complicated
+    }
     auto recordDecl = llvm::dyn_cast<RecordDecl>(fieldDecl->getDeclContext());
     m_lastLocationInRecordDecl = recordDecl->getRBraceLoc();
-    m_firstLocationInRecordDecl = recordDecl->getLocation();
+    for (auto decl : recordDecl->decls()) {
+        if (decl->getLocStart() != recordDecl->getLocStart()) {
+            m_firstLocationInRecordDecl = decl->getLocStart();
+            break;
+        }
+    }
+    if (m_firstLocationInRecordDecl.isInvalid()) {
+        m_firstLocationInRecordDecl = m_lastLocationInRecordDecl;
+    }
     m_astContext = &fieldDecl->getASTContext();
 }
 
