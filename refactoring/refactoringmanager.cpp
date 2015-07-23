@@ -188,7 +188,7 @@ void RefactoringManager::fillContextMenu(KDevelop::ContextMenuExtension &extensi
         }
         offset = _offset.get();
     }
-    auto mutator = new ContextMenuMutator(extension, context, this);
+    auto mutator = new ContextMenuMutator(extension, this);
     parent()->refactoringContext()->scheduleOnSingleFile(
         [filename, offset, mutator](RefactoringTool &clangTool)
         {

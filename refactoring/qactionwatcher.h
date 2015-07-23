@@ -19,45 +19,31 @@
     Boston, MA 02110-1301, USA.
 */
 
-#ifndef KDEV_CLANG_CONTEXTMENUMUTATOR_H
-#define KDEV_CLANG_CONTEXTMENUMUTATOR_H
+#ifndef KDEV_CLANG_QACTIONWATCHER_H
+#define KDEV_CLANG_QACTIONWATCHER_H
 
-// Qt
 #include <QObject>
 
 class QAction;
-class QWidget;
 
-namespace KDevelop
-{
-class ContextMenuExtension;
-
-class EditorContext;
-}
-
-class RefactoringManager;
-
-class Refactoring;
-
-class ContextMenuMutator : public QObject
+/**
+ * Watches associated widgets and deletes action when last associated widget is destroyed
+ */
+class QActionWatcher : public QObject
 {
     Q_OBJECT;
-    Q_DISABLE_COPY(ContextMenuMutator);
+    Q_DISABLE_COPY(QActionWatcher);
 public:
-    ContextMenuMutator(KDevelop::ContextMenuExtension &extension, RefactoringManager *parent);
-
-    RefactoringManager *parent();
+    QActionWatcher(QAction *action);
 
 private:
-    QWidget* menuForWidget(QWidget *widget);
-
-private slots:
-    void endFillingContextMenu(const QVector<Refactoring *> &refactorings);
+    QAction *parent();
+    void decreaseCount();
+    void registerAssociatedWidgets();
 
 private:
-    QAction *m_placeholder;
+    int m_count;
 };
 
-Q_DECLARE_METATYPE(ContextMenuMutator*);
 
-#endif //KDEV_CLANG_CONTEXTMENUMUTATOR_H
+#endif //KDEV_CLANG_QACTIONWATCHER_H

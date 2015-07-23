@@ -28,6 +28,7 @@ set(SRCS
     encapsulatefieldrefactoring_changepack.cpp
     refactoringcontext_worker.cpp
     contextmenumutator.cpp
+    qactionwatcher.cpp
 )
 
 add_library(kdevclangrefactor STATIC

@@ -33,12 +33,11 @@
 #include "contextmenumutator.h"
 #include "refactoringmanager.h"
 #include "kdevrefactorings.h"
-#include "debug.h"
+#include "qactionwatcher.h"
 
 using namespace KDevelop;
 
-ContextMenuMutator::ContextMenuMutator(ContextMenuExtension &extension, EditorContext *context,
-                                       RefactoringManager *parent)
+ContextMenuMutator::ContextMenuMutator(ContextMenuExtension &extension, RefactoringManager *parent)
     : QObject(parent)
       , m_placeholder(new QAction(i18n("preparing list..."), this))
 {
@@ -50,20 +49,49 @@ RefactoringManager *ContextMenuMutator::parent()
     return static_cast<RefactoringManager *>(QObject::parent());
 }
 
+// Create submenu for refactoring actions if necessary and possible
+QWidget *ContextMenuMutator::menuForWidget(QWidget *widget)
+{
+    QMenu *const menu = dynamic_cast<QMenu *>(widget);
+    if (menu) {
+        int sectionSize = 0;
+        bool found = false;
+        for (QAction *a : menu->actions()) {
+            if (!a->isSeparator()) {
+                sectionSize++;
+                if (a == m_placeholder) {
+                    found = true;
+                }
+            } else {
+                if (!found) {
+                    sectionSize = 0;
+                } else {
+                    break;
+                }
+            }
+        }
+        Q_ASSERT(sectionSize > 0);
+        if (sectionSize > 1) {
+            // do nothing
+            return widget;
+        } else {
+            // make submenu
+            QMenu *submenu = new QMenu(i18n("Refactor"), menu);
+            menu->insertMenu(m_placeholder, submenu);
+            return submenu;
+        }
+    } else {
+        // We can't create submenu
+        return widget;
+    }
+}
+
 void ContextMenuMutator::endFillingContextMenu(const QVector<Refactoring *> &refactorings)
 {
-//    for (QWidget *w : m_placeholder->associatedWidgets()) {
-//        refactorDebug() << "widget:";
-//        for (QObject *o = w; o; o = o->parent()) {
-//            refactorDebug() << o->metaObject()->className() << " " << o->objectName();
-//        }
-//    }
-    QMenu *menu = dynamic_cast<QMenu *>(m_placeholder->associatedWidgets()[0]);
-    // FIXME: menu may already be closed - handle that
-    Q_ASSERT(menu); // TODO: improve that (distinguish options)
+    QList<QAction *> actions;
     auto refactoringContext = parent()->parent()->refactoringContext();
     for (auto refactorAction : refactorings) {
-        QAction *action = new QAction(refactorAction->name(), menu);
+        QAction *action = new QAction(refactorAction->name(), parent());
         refactorAction->setParent(action);  // delete as necessary
         connect(action, &QAction::triggered, [this, refactoringContext, refactorAction]()
         {
@@ -77,9 +105,13 @@ void ContextMenuMutator::endFillingContextMenu(const QVector<Refactoring *> &ref
 
             changes.applyAllChanges();
         });
-
-        menu->addAction(action);
+        actions.push_back(action);
     }
-    // TODO: heuristic to detect submenu
+    for (QWidget *w : m_placeholder->associatedWidgets()) {
+        menuForWidget(w)->insertActions(m_placeholder, actions);
+    }
+    for (QAction *a : actions) {
+        new QActionWatcher(a);
+    }
     deleteLater();
 }

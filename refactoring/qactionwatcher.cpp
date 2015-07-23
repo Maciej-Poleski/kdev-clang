@@ -19,45 +19,40 @@
     Boston, MA 02110-1301, USA.
 */
 
-#ifndef KDEV_CLANG_CONTEXTMENUMUTATOR_H
-#define KDEV_CLANG_CONTEXTMENUMUTATOR_H
+#include <QAction>
 
-// Qt
-#include <QObject>
+#include "qactionwatcher.h"
+#include "debug.h"
 
-class QAction;
-class QWidget;
-
-namespace KDevelop
+QActionWatcher::QActionWatcher(QAction *action)
+    : QObject(action)
 {
-class ContextMenuExtension;
-
-class EditorContext;
+    registerAssociatedWidgets();
 }
 
-class RefactoringManager;
-
-class Refactoring;
-
-class ContextMenuMutator : public QObject
+QAction *QActionWatcher::parent()
 {
-    Q_OBJECT;
-    Q_DISABLE_COPY(ContextMenuMutator);
-public:
-    ContextMenuMutator(KDevelop::ContextMenuExtension &extension, RefactoringManager *parent);
+    return static_cast<QAction *>(QObject::parent());
+}
 
-    RefactoringManager *parent();
+void QActionWatcher::decreaseCount()
+{
+    m_count--;
+    if (m_count == 0) {
+        registerAssociatedWidgets();
+    }
+}
 
-private:
-    QWidget* menuForWidget(QWidget *widget);
-
-private slots:
-    void endFillingContextMenu(const QVector<Refactoring *> &refactorings);
-
-private:
-    QAction *m_placeholder;
-};
-
-Q_DECLARE_METATYPE(ContextMenuMutator*);
-
-#endif //KDEV_CLANG_CONTEXTMENUMUTATOR_H
+void QActionWatcher::registerAssociatedWidgets()
+{
+    // Consider watching for ActionEvents - action may be removed from widget before destruction
+    const auto &widgets = parent()->associatedWidgets();
+    m_count = widgets.count();
+    if (m_count == 0) {
+        parent()->deleteLater();
+    } else {
+        for (QWidget *w :widgets) {
+            connect(w, &QObject::destroyed, this, &QActionWatcher::decreaseCount);
+        }
+    }
+}
