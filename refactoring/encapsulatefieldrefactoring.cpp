@@ -186,7 +186,7 @@ int run(RefactoringTool &tool, const ChangePack *changePack,
 
 QString EncapsulateFieldRefactoring::name() const
 {
-    return i18n("encapsulate");
+    return i18n("encapsulate [%1]").arg(QString::fromStdString(m_changePack->fieldName()));
 }
 
 Translator::Translator(Replacements &replacements, const ChangePack *changePack,
@@ -381,7 +381,12 @@ void Translator::onEndOfTranslationUnit()
             default:
                 Q_ASSERT(false && "Non exhausting match");
             }
-            result += " " + m_changePack->getterName() + "() const\n";
+            result += " " + m_changePack->getterName() + "()";
+            if (!m_changePack->isStatic()) {
+                result += " const\n";
+            } else {
+                result += "\n";
+            }
             result += "{\n";
             result += "\treturn " + m_changePack->fieldName() + ";\n";
             result += "}\n";

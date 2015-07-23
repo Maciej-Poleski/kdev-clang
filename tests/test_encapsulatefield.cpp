@@ -155,7 +155,7 @@ void TestEncapsulateField::testStaticByValue()
                         private:
                             static int x;
                         public:
-                            static int accessor() const
+                            static int accessor()
                             {
                                 return x;
                             }
@@ -225,7 +225,7 @@ void TestEncapsulateField::testStaticNoMutator()
                         private:
                             static int x;
                         public:
-                            static int accessor() const
+                            static int accessor()
                             {
                                 return x;
                             }
