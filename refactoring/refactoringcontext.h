@@ -33,11 +33,16 @@
 
 // Clang
 #include <clang/Tooling/CompilationDatabase.h>
+#include <clang/Tooling/Refactoring.h>
 
 namespace KDevelop
 {
 class IDocumentController;
+
+class IProject;
 };
+
+class KDevRefactorings;
 
 class DocumentCache;
 
@@ -47,14 +52,32 @@ class RefactoringContext : public QObject
     Q_OBJECT;
     Q_DISABLE_COPY(RefactoringContext);
 
+    class Worker;
+
 public:
-    RefactoringContext(std::unique_ptr<clang::tooling::CompilationDatabase> database);
+    RefactoringContext(KDevRefactorings *parent);
+
+    KDevRefactorings *parent();
 
     llvm::ErrorOr<unsigned> offset(const std::string &sourceFile,
                                    const KTextEditor::Cursor &position) const;
 
+    void schedule(std::function<void(clang::tooling::RefactoringTool &)> task);
+    void scheduleOnSingleFile(std::function<void(clang::tooling::RefactoringTool &)> task,
+                              const std::string &filename);
+
+private: // (slots)
+    // Only one project for now
+    void projectOpened(KDevelop::IProject *project);
+    void projectConfigured(KDevelop::IProject *project);
+
+
+public:
     std::unique_ptr<clang::tooling::CompilationDatabase> database;
     DocumentCache *cache;
+
+private:
+    Worker *m_worker;
 };
 
 

@@ -19,32 +19,35 @@
     Boston, MA 02110-1301, USA.
 */
 
-// KDevelop
-#include <language/interfaces/editorcontext.h>
-
-#include "kdevrefactorings.h"
-#include "refactoringcontext.h"
+#include "refactoringcontext_worker.h"
+#include "refactoring.h"
 #include "refactoringmanager.h"
+#include "documentcache.h"
 
-#include "../clangsupport.h"
-
-
-using namespace KDevelop;
-using namespace Refactorings;
-
-KDevRefactorings::KDevRefactorings(ClangSupport *parent)
-    : QObject(parent)
-      , m_refactoringsContext(new RefactoringContext(this))
-      , m_refactoringManager(new RefactoringManager(this))
+RefactoringContext::Worker::Worker(
+    RefactoringContext *refactoringContext)
+    : QThread(nullptr)
+      , m_parent(refactoringContext)
 {
+    qRegisterMetaType<std::function<void(clang::tooling::RefactoringTool &)>>();
+    qRegisterMetaType<std::string>();
+    moveToThread(this);
+    setObjectName("RefactoringManager - Worker");
+    connect(m_parent, &QObject::destroyed, this, [this]
+    {
+        m_parent = nullptr;
+        exit();
+    });
 }
 
-void KDevRefactorings::fillContextMenu(ContextMenuExtension &extension, Context *context)
+void RefactoringContext::Worker::invoke(std::function<void(clang::tooling::RefactoringTool &)> task)
 {
-    if (EditorContext *ctx = dynamic_cast<EditorContext *>(context)) {
-        m_refactoringManager->fillContextMenu(extension, ctx);
-    } else {
-        // I assume the above works anytime we ask for context menu for code
-        Q_ASSERT(!context->hasType(Context::CodeContext));
-    }
+    task(m_parent->cache->refactoringTool());
+}
+
+void RefactoringContext::Worker::invokeOnSingleFile(
+    std::function<void(clang::tooling::RefactoringTool &)> task, const std::string &filename)
+{
+    auto tool = m_parent->cache->refactoringToolForFile(filename);
+    task(tool);
 }

@@ -26,6 +26,8 @@ set(SRCS
     encapsulatefieldrefactoring.cpp
     encapsulatefielddialog.cpp
     encapsulatefieldrefactoring_changepack.cpp
+    refactoringcontext_worker.cpp
+    contextmenumutator.cpp
 )
 
 add_library(kdevclangrefactor STATIC

@@ -19,41 +19,40 @@
     Boston, MA 02110-1301, USA.
 */
 
-#ifndef KDEV_CLANG_REFACTORINGMANAGER_H
-#define KDEV_CLANG_REFACTORINGMANAGER_H
+#ifndef KDEV_CLANG_CONTEXTMENUMUTATOR_H
+#define KDEV_CLANG_CONTEXTMENUMUTATOR_H
 
 // Qt
 #include <QObject>
-#include <QVector>
 
-// KDevelop
-#include <interfaces/contextmenuextension.h>
-#include <language/interfaces/editorcontext.h>
+class QAction;
 
-// C++
-#include <memory>
+namespace KDevelop
+{
+class ContextMenuExtension;
+class EditorContext;
+}
 
-#include "refactoring.h"
+class RefactoringManager;
+class Refactoring;
 
-class KDevRefactorings;
-
-class RefactoringManager : public QObject
+class ContextMenuMutator : public QObject
 {
     Q_OBJECT;
-    Q_DISABLE_COPY(RefactoringManager);
-
+    Q_DISABLE_COPY(ContextMenuMutator);
 public:
-    RefactoringManager(KDevRefactorings *parent);
+    ContextMenuMutator(KDevelop::ContextMenuExtension &extension, KDevelop::EditorContext *context,
+                       RefactoringManager *parent = nullptr);
 
-    void fillContextMenu(KDevelop::ContextMenuExtension &extension,
-                         KDevelop::EditorContext *context);
+    RefactoringManager* parent();
 
-    KDevRefactorings *parent();
+private slots:
+    void endFillingContextMenu(const QVector<Refactoring *> &refactorings);
 
 private:
-
+    QAction *m_placeholder;
 };
 
-Q_DECLARE_METATYPE(QVector<Refactoring *>);
+Q_DECLARE_METATYPE(ContextMenuMutator*);
 
-#endif //KDEV_CLANG_REFACTORINGMANAGER_H
+#endif //KDEV_CLANG_CONTEXTMENUMUTATOR_H

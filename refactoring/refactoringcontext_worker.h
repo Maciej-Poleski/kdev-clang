@@ -19,41 +19,37 @@
     Boston, MA 02110-1301, USA.
 */
 
-#ifndef KDEV_CLANG_REFACTORINGMANAGER_H
-#define KDEV_CLANG_REFACTORINGMANAGER_H
+#ifndef KDEV_CLANG_REFACTORINGMANAGER_WORKER_H
+#define KDEV_CLANG_REFACTORINGMANAGER_WORKER_H
+
+// Clang
+#include <clang/Tooling/Refactoring.h>
 
 // Qt
-#include <QObject>
-#include <QVector>
+#include <QThread>
 
-// KDevelop
-#include <interfaces/contextmenuextension.h>
-#include <language/interfaces/editorcontext.h>
+#include "refactoringcontext.h"
 
-// C++
-#include <memory>
-
-#include "refactoring.h"
-
-class KDevRefactorings;
-
-class RefactoringManager : public QObject
+/**
+ * This is background worker for refactoring actions
+ */
+class RefactoringContext::Worker : public QThread
 {
     Q_OBJECT;
-    Q_DISABLE_COPY(RefactoringManager);
-
+    Q_DISABLE_COPY(Worker);
 public:
-    RefactoringManager(KDevRefactorings *parent);
+    Worker(RefactoringContext *parent);
 
-    void fillContextMenu(KDevelop::ContextMenuExtension &extension,
-                         KDevelop::EditorContext *context);
-
-    KDevRefactorings *parent();
+public slots:
+    void invoke(std::function<void(clang::tooling::RefactoringTool &)> task);
+    void invokeOnSingleFile(std::function<void(clang::tooling::RefactoringTool &)> task,
+                            const std::string &filename);
 
 private:
-
+    RefactoringContext *m_parent;
 };
 
-Q_DECLARE_METATYPE(QVector<Refactoring *>);
+Q_DECLARE_METATYPE(std::function<void(clang::tooling::RefactoringTool &)>);
+Q_DECLARE_METATYPE(std::string);
 
-#endif //KDEV_CLANG_REFACTORINGMANAGER_H
+#endif //KDEV_CLANG_REFACTORINGMANAGER_WORKER_H
