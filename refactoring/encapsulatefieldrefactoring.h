@@ -59,7 +59,7 @@ namespace Refactorings
 {
 namespace EncapsulateField
 {
-using ChangePack=EncapsulateFieldRefactoring::ChangePack;
+using ChangePack = EncapsulateFieldRefactoring::ChangePack;
 
 int run(clang::tooling::RefactoringTool &tool, const ChangePack *changePack,
         const DeclarationComparator *declDispatcher,

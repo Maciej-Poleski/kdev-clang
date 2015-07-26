@@ -85,10 +85,10 @@ private:
 
 EncapsulateFieldRefactoring::EncapsulateFieldRefactoring(const DeclaratorDecl *decl)
     : Refactoring(nullptr)
-      , m_changePack(ChangePack::fromDeclaratorDecl(decl))
-      , m_declDispatcher(decl)
-      , m_recordDeclDispatcher(llvm::dyn_cast<Decl>(decl->getDeclContext()))
-      , m_recordName(llvm::dyn_cast<RecordDecl>(decl->getDeclContext())->getName())
+    , m_changePack(ChangePack::fromDeclaratorDecl(decl))
+    , m_declDispatcher(decl)
+    , m_recordDeclDispatcher(llvm::dyn_cast<Decl>(decl->getDeclContext()))
+    , m_recordName(llvm::dyn_cast<RecordDecl>(decl->getDeclContext())->getName())
 {
 }
 
@@ -193,10 +193,10 @@ Translator::Translator(Replacements &replacements, const ChangePack *changePack,
                        const DeclarationComparator *declDispatcher,
                        const DeclarationComparator *recordDeclDispatcher, const string &recordName)
     : m_replacements(replacements)
-      , m_changePack(changePack)
-      , m_declDispatcher(declDispatcher)
-      , m_recordDeclDispatcher(recordDeclDispatcher)
-      , m_recordName(recordName)
+    , m_changePack(changePack)
+    , m_declDispatcher(declDispatcher)
+    , m_recordDeclDispatcher(recordDeclDispatcher)
+    , m_recordName(recordName)
 {
 }
 

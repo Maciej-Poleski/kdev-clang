@@ -29,7 +29,7 @@ using namespace clang;
 
 EncapsulateFieldDialog::EncapsulateFieldDialog(ChangePack *changePack)
     : QDialog(nullptr)
-      , m_changePack(changePack)
+    , m_changePack(changePack)
 {
     setupUi(this);
     fieldLineEdit->setText(QString::fromStdString(m_changePack->fieldDescription()));

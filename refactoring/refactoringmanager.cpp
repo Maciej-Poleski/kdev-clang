@@ -138,7 +138,7 @@ class ExplorerActionFactory : public FrontendActionFactory
 public:
     ExplorerActionFactory(const std::string &fileName, unsigned offset)
         : m_fileName(fileName)
-          , m_offset(offset)
+        , m_offset(offset)
     {
     }
 
@@ -188,8 +188,8 @@ std::vector<Refactoring *> RefactoringManager::allApplicableRefactorings(Refacto
 
 ExplorerASTConsumer::ExplorerASTConsumer(ExplorerActionFactory &factory, CompilerInstance &CI)
     : m_visitor(*this)
-      , m_factory(factory)
-      , m_CI(CI)
+    , m_factory(factory)
+    , m_CI(CI)
 {
 }
 

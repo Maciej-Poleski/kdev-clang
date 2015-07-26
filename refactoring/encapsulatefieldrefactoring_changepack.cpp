@@ -39,15 +39,15 @@ EncapsulateFieldRefactoring::ChangePack::ChangePack(const std::string &fieldDesc
                                                     AccessorStyle accessorStyle, bool createSetter,
                                                     bool isStatic)
     : m_fieldDescription(fieldDescription)
-      , m_fieldType(fieldType)
-      , m_fieldName(fieldName)
-      , m_getterName(getterName)
-      , m_setterName(setterName)
-      , m_getterAccess(getterAccess)
-      , m_setterAccess(setterAccess)
-      , m_accessorStyle(accessorStyle)
-      , m_createSetter(createSetter)
-      , m_isStatic(isStatic)
+    , m_fieldType(fieldType)
+    , m_fieldName(fieldName)
+    , m_getterName(getterName)
+    , m_setterName(setterName)
+    , m_getterAccess(getterAccess)
+    , m_setterAccess(setterAccess)
+    , m_accessorStyle(accessorStyle)
+    , m_createSetter(createSetter)
+    , m_isStatic(isStatic)
 {
 }
 

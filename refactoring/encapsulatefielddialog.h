@@ -32,12 +32,12 @@ class EncapsulateFieldDialog : public QDialog, private Ui::EncapsulateFieldDialo
     Q_OBJECT;
     Q_DISABLE_COPY(EncapsulateFieldDialog);
 
-    using ChangePack=EncapsulateFieldRefactoring::ChangePack;
+    using ChangePack = EncapsulateFieldRefactoring::ChangePack;
 
 public:
     EncapsulateFieldDialog(ChangePack *changePack);
 
-    const ChangePack *getChangePack() const
+    const ChangePack *changePack() const
     {
         return m_changePack;
     }
