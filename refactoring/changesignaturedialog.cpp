@@ -24,7 +24,7 @@
 #include <QAbstractTableModel>
 
 // KF5
-#include <KF5/KI18n/klocalizedstring.h>
+#include <KLocalizedString>
 
 #include "changesignaturedialog.h"
 #include "changesignaturerefactoringinfopack.h"
@@ -39,6 +39,17 @@ class ChangeSignatureDialog::Model : public QAbstractTableModel
     Q_DISABLE_COPY(Model);
 
     friend class ChangeSignatureDialog;
+
+    // Need implicit cast from int to abuse type system...
+    // (https://git.reviewboard.kde.org/r/124300/#comment57268)
+    struct Column
+    {
+        enum : int
+        {
+            Type = 0,
+            Name = 1,
+        };
+    };
 
 public:
     Model(const InfoPack *infoPack, QObject *parent);
@@ -83,7 +94,7 @@ private:
 
 ChangeSignatureDialog::ChangeSignatureDialog(const InfoPack *infoPack, QWidget *parent)
     : QDialog(parent)
-      , m_model(new Model(infoPack, this))
+    , m_model(new Model(infoPack, this))
 {
     setupUi(this);
     reinitializeDialogData();
@@ -171,8 +182,8 @@ void ChangeSignatureDialog::reinitializeDialogData()
 
 ChangeSignatureDialog::Model::Model(const InfoPack *infoPack, QObject *parent)
     : QAbstractTableModel(parent)
-      , m_infoPack(infoPack)
-      , m_changePack(new ChangePack(infoPack))
+    , m_infoPack(infoPack)
+    , m_changePack(new ChangePack(infoPack))
 {
 }
 
@@ -199,9 +210,9 @@ QVariant ChangeSignatureDialog::Model::data(const QModelIndex &index, int role) 
         }
         auto &t = params[row];
         switch (index.column()) {
-        case 0:
+        case Column::Type:
             return QString::fromStdString(std::get<0>(t));
-        case 1:
+        case Column::Name:
             return QString::fromStdString(std::get<1>(t));
         }
     }
@@ -213,9 +224,9 @@ QVariant ChangeSignatureDialog::Model::headerData(int section, Qt::Orientation o
 {
     if (role == Qt::DisplayRole && orientation == Qt::Horizontal) {
         switch (section) {
-        case 0:
+        case Column::Type:
             return i18n("Type");
-        case 1:
+        case Column::Name:
             return i18n("Name");
         }
     }
@@ -225,7 +236,7 @@ QVariant ChangeSignatureDialog::Model::headerData(int section, Qt::Orientation o
 Qt::ItemFlags ChangeSignatureDialog::Model::flags(const QModelIndex &index) const
 {
     Qt::ItemFlags result = QAbstractTableModel::flags(index);
-    if (index.column() == 0 || m_changePack->m_paramRefs[index.row()] < 0) {
+    if (index.column() == Column::Type || m_changePack->m_paramRefs[index.row()] < 0) {
         result |= Qt::ItemIsEditable;
     }
     return result;
@@ -248,10 +259,10 @@ bool ChangeSignatureDialog::Model::setData(const QModelIndex &index, const QVari
         auto &t = m_changePack->m_newParam[-row - 1];
         std::string newValue = value.toString().toStdString();
         switch (index.column()) {
-        case 0:
+        case Column::Type:
             std::get<0>(t) = newValue;
             break;
-        case 1:
+        case Column::Name:
             std::get<1>(t) = newValue;
             break;
         default:

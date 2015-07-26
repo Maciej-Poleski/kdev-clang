@@ -349,9 +349,9 @@ std::string textFromTokenRange(clang::SourceRange range, const clang::SourceMana
     int size = getTokenRangeSize(range, sourceManager, langOpts);
     const char *data = sourceManager.getCharacterData(range.getBegin());
     if (data == nullptr) {
-        refactorCritical() << "data is nullptr";
+        refactorWarning() << "data is nullptr";
     } else if (size == -1) {
-        refactorCritical() << "range does not fit in one file";
+        refactorWarning() << "range does not fit in one file";
     } else {
         Q_ASSERT(size >= 0);
         return std::string(data, static_cast<std::size_t>(size));

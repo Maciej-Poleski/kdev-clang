@@ -122,9 +122,9 @@ QString ChangeSignatureRefactoring::name() const
 Translator::Translator(const DeclarationComparator *declComparator, const InfoPack *infoPack,
                        const ChangePack *changePack, Replacements &replacements)
     : m_declDispatcher(declComparator)
-      , m_infoPack(infoPack)
-      , m_changePack(changePack)
-      , m_replacements(replacements)
+    , m_infoPack(infoPack)
+    , m_changePack(changePack)
+    , m_replacements(replacements)
 {
 }
 
