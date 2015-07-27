@@ -41,15 +41,23 @@ public:
     Worker(RefactoringContext *parent);
 
 public slots:
-    void invoke(std::function<void(clang::tooling::RefactoringTool &)> task);
-    void invokeOnSingleFile(std::function<void(clang::tooling::RefactoringTool &)> task,
+    void invoke(std::function<void(clang::tooling::RefactoringTool &,
+                                   std::function<void(std::function<void()>)>)> task);
+    void invokeOnSingleFile(std::function<void(clang::tooling::RefactoringTool &,
+                                               std::function<void(std::function<void()>)>)> task,
                             const std::string &filename);
+
+signals:
+    void taskFinished(std::function<void()> resultCallback);
 
 private:
     RefactoringContext *m_parent;
 };
 
-Q_DECLARE_METATYPE(std::function<void(clang::tooling::RefactoringTool &)>);
+#if(QT_VERSION < QT_VERSION_CHECK(5, 4, 0))
+Q_DECLARE_METATYPE(std::function<void(clang::tooling::RefactoringTool & ,
+                       std::function<void(std::function<void()>)>)>);
 Q_DECLARE_METATYPE(std::string);
+#endif
 
 #endif //KDEV_CLANG_REFACTORINGMANAGER_WORKER_H

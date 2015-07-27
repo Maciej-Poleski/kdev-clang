@@ -51,7 +51,7 @@ public:
 private:
     QWidget* menuForWidget(QWidget *widget);
 
-private slots:
+public slots:
     void endFillingContextMenu(const QVector<Refactoring *> &refactorings);
 
 private:

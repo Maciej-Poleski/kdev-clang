@@ -189,19 +189,20 @@ void RefactoringManager::fillContextMenu(KDevelop::ContextMenuExtension &extensi
         offset = _offset.get();
     }
     auto mutator = new ContextMenuMutator(extension, this);
+    QThread *mainThread = thread(); // Only for lambda below
     parent()->refactoringContext()->scheduleOnSingleFile(
-        [filename, offset, mutator](RefactoringTool &clangTool)
+        [filename, offset, mainThread](RefactoringTool &clangTool)
         {
             auto faf = cpp::make_unique<ExplorerActionFactory>(filename, offset);
             clangTool.run(faf.get());
-            QThread *mainThread = mutator->thread();
             for (Refactoring *r : faf->m_refactorings) {
                 r->moveToThread(mainThread);
             }
-            auto result = QVector<Refactoring *>::fromStdVector(faf->m_refactorings);
-            QMetaObject::invokeMethod(mutator, "endFillingContextMenu",
-                                      Q_ARG(QVector<Refactoring *>, result));
-        }, filename);
+            return QVector<Refactoring *>::fromStdVector(faf->m_refactorings);
+        }, filename, [mutator](const QVector<Refactoring *> &result)
+        {
+            mutator->endFillingContextMenu(result);
+        });
 }
 
 

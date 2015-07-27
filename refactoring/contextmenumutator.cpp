@@ -33,13 +33,13 @@
 #include "contextmenumutator.h"
 #include "refactoringmanager.h"
 #include "kdevrefactorings.h"
-#include "qactionwatcher.h"
+#include "actionwatcher.h"
 
 using namespace KDevelop;
 
 ContextMenuMutator::ContextMenuMutator(ContextMenuExtension &extension, RefactoringManager *parent)
     : QObject(parent)
-      , m_placeholder(new QAction(i18n("preparing list..."), this))
+    , m_placeholder(new QAction(i18n("preparing list..."), this))
 {
     extension.addAction(ContextMenuExtension::RefactorGroup, m_placeholder);
 }
@@ -52,7 +52,7 @@ RefactoringManager *ContextMenuMutator::parent()
 // Create submenu for refactoring actions if necessary and possible
 QWidget *ContextMenuMutator::menuForWidget(QWidget *widget)
 {
-    QMenu *const menu = dynamic_cast<QMenu *>(widget);
+    QMenu * const menu = dynamic_cast<QMenu *>(widget);
     if (menu) {
         int sectionSize = 0;
         bool found = false;
@@ -111,7 +111,7 @@ void ContextMenuMutator::endFillingContextMenu(const QVector<Refactoring *> &ref
         menuForWidget(w)->insertActions(m_placeholder, actions);
     }
     for (QAction *a : actions) {
-        new QActionWatcher(a);
+        new ActionWatcher(a);
     }
     deleteLater();
 }

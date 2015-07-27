@@ -34,8 +34,8 @@ using namespace Refactorings;
 
 KDevRefactorings::KDevRefactorings(ClangSupport *parent)
     : QObject(parent)
-      , m_refactoringsContext(new RefactoringContext(this))
-      , m_refactoringManager(new RefactoringManager(this))
+    , m_refactoringsContext(new RefactoringContext(this))
+    , m_refactoringManager(new RefactoringManager(this))
 {
 }
 

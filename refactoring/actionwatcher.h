@@ -19,40 +19,31 @@
     Boston, MA 02110-1301, USA.
 */
 
-#include <QAction>
+#ifndef KDEV_CLANG_QACTIONWATCHER_H
+#define KDEV_CLANG_QACTIONWATCHER_H
 
-#include "qactionwatcher.h"
-#include "debug.h"
+#include <QObject>
 
-QActionWatcher::QActionWatcher(QAction *action)
-    : QObject(action)
+class QAction;
+
+/**
+ * Watches associated widgets and deletes action when last associated widget is destroyed
+ */
+class ActionWatcher : public QObject
 {
-    registerAssociatedWidgets();
-}
+    Q_OBJECT;
+    Q_DISABLE_COPY(ActionWatcher);
+public:
+    ActionWatcher(QAction *action);
 
-QAction *QActionWatcher::parent()
-{
-    return static_cast<QAction *>(QObject::parent());
-}
+private:
+    QAction *parent();
+    void decreaseCount();
+    void registerAssociatedWidgets();
 
-void QActionWatcher::decreaseCount()
-{
-    m_count--;
-    if (m_count == 0) {
-        registerAssociatedWidgets();
-    }
-}
+private:
+    int m_count;
+};
 
-void QActionWatcher::registerAssociatedWidgets()
-{
-    // Consider watching for ActionEvents - action may be removed from widget before destruction
-    const auto &widgets = parent()->associatedWidgets();
-    m_count = widgets.count();
-    if (m_count == 0) {
-        parent()->deleteLater();
-    } else {
-        for (QWidget *w :widgets) {
-            connect(w, &QObject::destroyed, this, &QActionWatcher::decreaseCount);
-        }
-    }
-}
+
+#endif //KDEV_CLANG_QACTIONWATCHER_H

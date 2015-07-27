@@ -19,6 +19,8 @@
     Boston, MA 02110-1301, USA.
 */
 
+#include "refactoringcontext.h" // NOTE: we have circular dependency here
+// Above must be included before...
 #include "refactoringcontext_worker.h"
 #include "refactoring.h"
 #include "refactoringmanager.h"
@@ -27,12 +29,15 @@
 RefactoringContext::Worker::Worker(
     RefactoringContext *refactoringContext)
     : QThread(nullptr)
-      , m_parent(refactoringContext)
+    , m_parent(refactoringContext)
 {
-    qRegisterMetaType<std::function<void(clang::tooling::RefactoringTool &)>>();
+#if(QT_VERSION < QT_VERSION_CHECK(5, 4, 0))
+    qRegisterMetaType<std::function<void(clang::tooling::RefactoringTool &,
+                                         std::function<void(std::function<void()>)>)>>();
     qRegisterMetaType<std::string>();
+#endif
     moveToThread(this);
-    setObjectName("RefactoringManager - Worker");
+    setObjectName("RefactoringContext - Worker");
     connect(m_parent, &QObject::destroyed, this, [this]
     {
         m_parent = nullptr;
@@ -40,14 +45,24 @@ RefactoringContext::Worker::Worker(
     });
 }
 
-void RefactoringContext::Worker::invoke(std::function<void(clang::tooling::RefactoringTool &)> task)
+void RefactoringContext::Worker::invoke(
+    std::function<void(clang::tooling::RefactoringTool &,
+                       std::function<void(std::function<void()>)>)> task)
 {
-    task(m_parent->cache->refactoringTool());
+    task(m_parent->cache->refactoringTool(), [this](std::function<void()> resultCallback)
+    {
+        emit taskFinished(resultCallback);
+    });
 }
 
 void RefactoringContext::Worker::invokeOnSingleFile(
-    std::function<void(clang::tooling::RefactoringTool &)> task, const std::string &filename)
+    std::function<void(clang::tooling::RefactoringTool &,
+                       std::function<void(std::function<void()>)>)> task,
+    const std::string &filename)
 {
     auto tool = m_parent->cache->refactoringToolForFile(filename);
-    task(tool);
+    task(tool, [this](std::function<void()> resultCallback)
+    {
+        emit taskFinished(resultCallback);
+    });
 }

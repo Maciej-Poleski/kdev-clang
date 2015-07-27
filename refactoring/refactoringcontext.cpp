@@ -42,8 +42,13 @@ using namespace KDevelop;
 RefactoringContext::RefactoringContext(KDevRefactorings *parent)
     : QObject(parent)
 {
+    qRegisterMetaType<std::function<void()>>();
     cache = new DocumentCache(this);
     m_worker = new Worker(this);
+
+    connect(m_worker, &Worker::taskFinished, this, &RefactoringContext::invokeCallback);
+    // Will not call-back if this RefactoringContext have been destroyed concurrently
+
     connect(ICore::self()->projectController(), &IProjectController::projectOpened,
             this, &RefactoringContext::projectOpened);
     // handle projects() - alread opened projects
@@ -101,17 +106,7 @@ void RefactoringContext::projectConfigured(IProject *project)
     refactorDebug() << "RefactoringsContext sucessfully (re)generated!";
 }
 
-void RefactoringContext::schedule(std::function<void(clang::tooling::RefactoringTool &)> task)
+void RefactoringContext::invokeCallback(std::function<void()> callback)
 {
-    QMetaObject::invokeMethod(m_worker, "invoke",
-                              Q_ARG(std::function<void(clang::tooling::RefactoringTool &)>, task));
-
-}
-
-void RefactoringContext::scheduleOnSingleFile(
-    std::function<void(clang::tooling::RefactoringTool &)> task, const std::string &filename)
-{
-    QMetaObject::invokeMethod(m_worker, "invokeOnSingleFile",
-                              Q_ARG(std::function<void(clang::tooling::RefactoringTool &)>, task),
-                              Q_ARG(std::string, filename));
+    callback();
 }

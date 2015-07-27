@@ -63,8 +63,8 @@ public:
     }
 
 private:
-    RefactoringContext *const m_refactoringsContext;
-    RefactoringManager *const m_refactoringManager;
+    RefactoringContext * const m_refactoringsContext;
+    RefactoringManager * const m_refactoringManager;
 };
 
 #endif //BUILD_REFACTORINGS
