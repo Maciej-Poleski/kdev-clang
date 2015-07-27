@@ -30,7 +30,6 @@
 
 
 using namespace KDevelop;
-using namespace Refactorings;
 
 KDevRefactorings::KDevRefactorings(ClangSupport *parent)
     : QObject(parent)
