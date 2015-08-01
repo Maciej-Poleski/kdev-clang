@@ -365,59 +365,15 @@ void Translator::onEndOfTranslationUnit()
         if (i != m_accessSpecifiers.rend()) {
             privateLocation = locationFromIterator(i);
         }
-        auto accessorImplementation = [this]
-        {
-            string result;
-            if (m_changePack->isStatic()) {
-                result = "static ";
-            }
-            switch (m_changePack->accessorStyle()) {
-            case ChangePack::AccessorStyle::ConstReference:
-                result += "const " + m_changePack->fieldType() + "&";
-                break;
-            case ChangePack::AccessorStyle::Value:
-                result += m_changePack->fieldType();
-                break;
-            default:
-                Q_ASSERT(false && "Non exhausting match");
-            }
-            result += " " + m_changePack->getterName() + "()";
-            if (!m_changePack->isStatic()) {
-                result += " const\n";
-            } else {
-                result += "\n";
-            }
-            result += "{\n";
-            result += "\treturn " + m_changePack->fieldName() + ";\n";
-            result += "}\n";
-            return result;
-        };
-        auto mutatorImplementation = [this]
-        {
-            string result;
-            if (m_changePack->isStatic()) {
-                result = "static ";
-            }
-            result += "void " + m_changePack->setterName() + "(const " + m_changePack->fieldType() +
-                      " &" + m_changePack->fieldName() + ")\n";
-            result += "{\n";
-            if (!m_changePack->isStatic()) {
-                result += "this->";
-            } else {
-                result += m_recordName + "::";
-            }
-            result += m_changePack->fieldName() + " = " + m_changePack->fieldName() + ";\n";
-            result += "}\n";
-            return result;
-        };
+
         if (m_changePack->getterAccess() == AS_public ||
             (m_changePack->createSetter() && m_changePack->setterAccess() == AS_public)) {
             string change;
             if (m_changePack->getterAccess() == AS_public) {
-                change = accessorImplementation();
+                change = m_changePack->accessorCode();
             }
             if (m_changePack->createSetter() && m_changePack->setterAccess() == AS_public) {
-                change += "\n" + mutatorImplementation();
+                change += "\n" + m_changePack->mutatorCode();
             }
             if (publicLocation.isInvalid()) {
                 publicLocation = m_firstLocationInRecordDecl;
@@ -430,10 +386,10 @@ void Translator::onEndOfTranslationUnit()
             (m_changePack->createSetter() && m_changePack->setterAccess() == AS_protected)) {
             string change;
             if (m_changePack->getterAccess() == AS_protected) {
-                change = accessorImplementation();
+                change = m_changePack->accessorCode();
             }
             if (m_changePack->createSetter() && m_changePack->setterAccess() == AS_protected) {
-                change += "\n" + mutatorImplementation();
+                change += "\n" + m_changePack->mutatorCode();
             }
             if (protectedLocation.isInvalid()) {
                 if (publicLocation.isInvalid()) {
@@ -449,10 +405,10 @@ void Translator::onEndOfTranslationUnit()
             (m_changePack->createSetter() && m_changePack->setterAccess() == AS_private)) {
             string change;
             if (m_changePack->getterAccess() == AS_private) {
-                change = accessorImplementation();
+                change = m_changePack->accessorCode();
             }
             if (m_changePack->createSetter() && m_changePack->setterAccess() == AS_private) {
-                change += "\n" + mutatorImplementation();
+                change += "\n" + m_changePack->mutatorCode();
             }
             // It is always possible to get private location (FIXME: but beware difference struct/class)
             m_replacements.insert(
@@ -467,6 +423,7 @@ void Translator::onEndOfTranslationUnit()
 void Translator::handleAccessSpecDecl(const AccessSpecDecl *accessSpecDecl,
                                       SourceManager *sourceManager, const LangOptions &langOpts)
 {
+    Q_UNUSED(sourceManager);
     m_recordHandled = true;
     m_accessSpecifiers.emplace_back(accessSpecDecl->getAccess(), accessSpecDecl->getLocStart());
 }

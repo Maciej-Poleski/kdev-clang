@@ -35,20 +35,13 @@
 class EncapsulateFieldRefactoring::ChangePack
 {
 public:
-    enum class AccessorStyle : unsigned char
-    {
-        ConstReference,
-        Value,
-    };
-
     ChangePack(const std::string &fieldDescription, const std::string &fieldType,
                const std::string &fieldName, const std::string &getterName,
-               const std::string &setterName, clang::AccessSpecifier getterAccess,
-               clang::AccessSpecifier setterAccess, AccessorStyle accessorStyle, bool createSetter,
-               bool isStatic);
+               const std::string &setterName, const std::string &recordName,
+               clang::AccessSpecifier getterAccess, clang::AccessSpecifier setterAccess,
+               bool createSetter, bool isStatic);
 
     static std::unique_ptr<ChangePack> fromDeclaratorDecl(const clang::DeclaratorDecl *decl);
-
 
     const std::string &fieldDescription() const
     {
@@ -110,16 +103,6 @@ public:
         m_setterAccess = setterAccess;
     }
 
-    const AccessorStyle &accessorStyle() const
-    {
-        return m_accessorStyle;
-    }
-
-    void setAccessorStyle(const AccessorStyle &accessorStyle)
-    {
-        m_accessorStyle = accessorStyle;
-    }
-
     bool createSetter() const
     {
         return m_createSetter;
@@ -130,17 +113,44 @@ public:
         m_createSetter = createSetter;
     }
 
+    const std::string &accessorCode() const
+    {
+        return m_accessorCode;
+    }
+
+    const std::string &mutatorCode() const
+    {
+        return m_mutatorCode;
+    }
+
+    void setAccessorCode(const std::string &accessorCode)
+    {
+        m_accessorCode = accessorCode;
+    }
+
+    void setMutatorCode(const std::string &mutatorCode)
+    {
+        m_mutatorCode = mutatorCode;
+    }
+
+private:
+    std::string accessorImplementation() const;
+    std::string mutatorImplementation() const;
+
 private:
     const std::string m_fieldDescription;
     const std::string m_fieldType;
     const std::string m_fieldName;
     std::string m_getterName;
     std::string m_setterName;
+    std::string m_recordName;
     clang::AccessSpecifier m_getterAccess;
     clang::AccessSpecifier m_setterAccess;
-    AccessorStyle m_accessorStyle;
     bool m_createSetter;
     bool m_isStatic;
+
+    std::string m_accessorCode;
+    std::string m_mutatorCode;
 };
 
 

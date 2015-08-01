@@ -56,8 +56,8 @@ void TestEncapsulateField::testSimpleConstRef()
         [](RefactoringTool &tool)
         {
             using ChangePack = EncapsulateFieldRefactoring::ChangePack;
-            ChangePack changePack("", "int", "x", "accessor", "mutator", AS_public, AS_public,
-                                  ChangePack::AccessorStyle::ConstReference, true, false);
+            ChangePack changePack("", "int", "x", "accessor", "mutator", "C", AS_public, AS_public,
+                                  true, false);
             auto declDispatcher = declarationComparator(
                 [](const Decl *decl)
                 {
@@ -126,8 +126,8 @@ void TestEncapsulateField::testStaticByValue()
         [](RefactoringTool &tool)
         {
             using ChangePack = EncapsulateFieldRefactoring::ChangePack;
-            ChangePack changePack("", "int", "x", "accessor", "mutator", AS_public, AS_public,
-                                  ChangePack::AccessorStyle::Value, true, true);
+            ChangePack changePack("", "int", "x", "accessor", "mutator", "C", AS_public, AS_public,
+                                  true, true);
             auto declDispatcher = declarationComparator(
                 [](const Decl *decl)
                 {
@@ -155,7 +155,7 @@ void TestEncapsulateField::testStaticByValue()
                         private:
                             static int x;
                         public:
-                            static int accessor()
+                            static const int& accessor()
                             {
                                 return x;
                             }
@@ -196,8 +196,8 @@ void TestEncapsulateField::testStaticNoMutator()
         [](RefactoringTool &tool)
         {
             using ChangePack = EncapsulateFieldRefactoring::ChangePack;
-            ChangePack changePack("", "int", "x", "accessor", "mutator", AS_public, AS_none,
-                                  ChangePack::AccessorStyle::Value, false, true);
+            ChangePack changePack("", "int", "x", "accessor", "mutator", "C", AS_public, AS_none,
+                                  false, true);
             auto declDispatcher = declarationComparator(
                 [](const Decl *decl)
                 {
@@ -225,7 +225,7 @@ void TestEncapsulateField::testStaticNoMutator()
                         private:
                             static int x;
                         public:
-                            static int accessor()
+                            static const int& accessor()
                             {
                                 return x;
                             }

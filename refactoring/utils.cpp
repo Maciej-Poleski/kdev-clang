@@ -394,3 +394,28 @@ std::string suggestSetterName(const std::string &fieldName)
     return "set" + result;
 }
 
+std::string functionName(const std::string &functionDeclaration, const std::string &fallbackName)
+{
+    auto ast = buildASTFromCode(functionDeclaration);
+    if (!ast) {
+        refactorWarning() << "Unable to parse function:\n" << functionDeclaration;
+        refactorWarning() << "Using fallback" << fallbackName;
+        return fallbackName;
+    }
+    TranslationUnitDecl *tuDecl = ast->getASTContext().getTranslationUnitDecl();
+    FunctionDecl *functionDecl = nullptr;
+    for (Decl *decl : tuDecl->decls()) {
+        if (FunctionDecl *fdecl = dyn_cast<FunctionDecl>(decl)) {
+            if (fdecl->isThisDeclarationADefinition()) {
+                functionDecl = fdecl;
+                break;
+            }
+        }
+    }
+    if (!functionDecl) {
+        refactorWarning() << "Didn't find function definition here:\n" << functionDeclaration;
+        refactorWarning() << "Using fallback" << fallbackName;
+        return fallbackName;
+    }
+    return functionDecl->getName();
+}

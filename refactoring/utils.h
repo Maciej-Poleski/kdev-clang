@@ -188,4 +188,6 @@ std::string suggestGetterName(const std::string &fieldName);
 
 std::string suggestSetterName(const std::string &fieldName);
 
+std::string functionName(const std::string &functionDeclaration, const std::string &fallbackName);
+
 #endif //KDEV_CLANG_UTILS_H
