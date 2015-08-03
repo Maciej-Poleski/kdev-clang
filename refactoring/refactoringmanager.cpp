@@ -185,9 +185,9 @@ private:
 
 private:
     const std::string &m_fileName;
-    const Expr *m_expr;
-    ASTContext *m_astContext;
-    SourceManager *m_sourceManager;
+    const Expr *m_expr = nullptr;
+    ASTContext *m_astContext = nullptr;
+    SourceManager *m_sourceManager = nullptr;
     std::vector<Refactoring *> m_refactorings;
     const unsigned m_rangeBegin;
     const unsigned m_rangeEnd;
@@ -471,6 +471,10 @@ bool ExprRangeRefactorings::isInRange(const MatchFinder::MatchResult &result,
 
 void ExprRangeRefactorings::run(const MatchFinder::MatchResult &result)
 {
+    if (!m_expr && m_astContext) {
+        // refactorings populated, ignore rest
+        return;
+    }
     const Expr *expr = result.Nodes.getNodeAs<Expr>("Expr");
     if (isInRange(result, expr->getSourceRange())) {
         m_expr = expr; // overridden by most descent node (can be easily extended to return all...)
@@ -485,4 +489,5 @@ void ExprRangeRefactorings::onEndOfTranslationUnit()
         m_refactorings.push_back(
             new ExtractVariableRefactoring(m_expr, m_astContext, m_sourceManager));
     }
+    m_expr = nullptr;
 }
