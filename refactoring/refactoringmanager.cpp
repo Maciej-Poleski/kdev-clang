@@ -174,7 +174,7 @@ public:
         return m_refactorings;
     }
 
-    virtual void run(const MatchFinder::MatchResult &Result) override;
+    virtual void run(const MatchFinder::MatchResult &result) override;
 
     virtual void onEndOfTranslationUnit() override;
 
@@ -262,8 +262,8 @@ void RefactoringManager::fillContextMenu(KDevelop::ContextMenuExtension &extensi
 
                 QVector<Refactoring *> result =
                     QVector<Refactoring *>::fromStdVector(refactorings.refactorings());
-                for (auto r : result) {
-                    r->moveToThread(mainThread);
+                for (auto refactoring : result) {
+                    refactoring->moveToThread(mainThread);
                 }
                 return result;
             }, filename, endMutating);
@@ -469,13 +469,13 @@ bool ExprRangeRefactorings::isInRange(const MatchFinder::MatchResult &result,
                                                    result.Context->getLangOpts()));
 }
 
-void ExprRangeRefactorings::run(const MatchFinder::MatchResult &Result)
+void ExprRangeRefactorings::run(const MatchFinder::MatchResult &result)
 {
-    const Expr *expr = Result.Nodes.getNodeAs<Expr>("Expr");
-    if (isInRange(Result, expr->getSourceRange())) {
-        m_expr = expr; // overridden by most descent node
-        m_sourceManager = Result.SourceManager;
-        m_astContext = Result.Context;
+    const Expr *expr = result.Nodes.getNodeAs<Expr>("Expr");
+    if (isInRange(result, expr->getSourceRange())) {
+        m_expr = expr; // overridden by most descent node (can be easily extended to return all...)
+        m_sourceManager = result.SourceManager;
+        m_astContext = result.Context;
     }
 }
 

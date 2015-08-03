@@ -34,6 +34,7 @@
 
 #include "extractvariablerefactoring.h"
 #include "utils.h"
+#include "error.h"
 
 using namespace std;
 using namespace clang;
@@ -53,15 +54,15 @@ ExtractVariableRefactoring::ExtractVariableRefactoring(const clang::Expr *expr,
         queue.emplace(p, DynTypedNode::create(*expr));
     }
     while (!queue.empty()) {
-        auto n = queue.front();
+        auto front = queue.front();
         queue.pop();
-        if (get<0>(n).get<CompoundStmt>()) {
-            nodeInCpndStmt = get<1>(n).get<Stmt>();
+        if (get<0>(front).get<CompoundStmt>()) {
+            nodeInCpndStmt = get<1>(front).get<Stmt>();
             Q_ASSERT(nodeInCpndStmt);
             decltype(queue)().swap(queue);  // break
         } else {
-            for (auto p : astContext->getParents(get<0>(n))) {
-                queue.emplace(p, get<0>(n));
+            for (auto p : astContext->getParents(get<0>(front))) {
+                queue.emplace(p, get<0>(front));
             }
         }
     }
@@ -88,8 +89,11 @@ llvm::ErrorOr<clang::tooling::Replacements> ExtractVariableRefactoring::invoke(
 {
     // This is local refactoring, all context dependent operations done in RefactoringManager
     Q_UNUSED(ctx);
+    if (m_filenameExpression.empty()) {
+        return Error::RefactoringErrorNoParentCompoundStmt;
+    }
 
-    QString varName = QInputDialog::getText(nullptr, i18n("Variable name"),
+    QString varName = QInputDialog::getText(nullptr, i18n("Variable Name"),
                                             i18n("Type name of new variable"));
     if (varName.isEmpty()) {
         return cancelledResult();
