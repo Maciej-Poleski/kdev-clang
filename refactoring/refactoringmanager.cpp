@@ -42,6 +42,7 @@
 #include "changesignaturerefactoring.h"
 #include "encapsulatefieldrefactoring.h"
 #include "extractvariablerefactoring.h"
+#include "extractfunctionrefactoring.h"
 #include "debug.h"
 
 using namespace std;
@@ -488,6 +489,8 @@ void ExprRangeRefactorings::onEndOfTranslationUnit()
     if (m_expr) {
         m_refactorings.push_back(
             new ExtractVariableRefactoring(m_expr, m_astContext, m_sourceManager));
+        m_refactorings.push_back(
+            new ExtractFunctionRefactoring(m_expr, m_astContext, m_sourceManager));
     }
     m_expr = nullptr;
 }
