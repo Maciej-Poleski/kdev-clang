@@ -69,6 +69,8 @@ private:
     /// Some modification occurred and we must mark this document as dirty
     void handleDocumentModified(KDevelop::IDocument *document);
 
+    void initializeCacheInRefactoringTool(clang::tooling::RefactoringTool &tool);
+
 private:
     std::unique_ptr<clang::tooling::RefactoringTool> m_refactoringTool;
     std::unordered_map<std::string, std::string> m_cachedFiles;  // This cache if very volatile
