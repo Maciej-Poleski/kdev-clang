@@ -41,12 +41,6 @@ using namespace std;
 using namespace clang;
 using namespace clang::tooling;
 
-// place definition above definition
-// place declaration above declaration
-// inherit nested name spec
-
-// replacement on replacement
-
 namespace
 {
 // Collects all uses of declarations from given DeclContext
@@ -56,18 +50,26 @@ public:
     UsesFromDeclContext(const DeclContext *context);
 
     bool VisitDeclRefExpr(const DeclRefExpr *declRef);
+    bool VisitCXXThisExpr(const CXXThisExpr *cxxThisExpr);
 
     const DeclContext *const context;
-    unordered_map<const ValueDecl *, const DeclRefExpr *> usedDecls; // These will need to be passed explicitly
+    // These will need to be passed explicitly
+    unordered_map<const ValueDecl *, const DeclRefExpr *> usedDecls;
+    bool usesThis = false;
 };
 
 }
 
-// NOTE: It may be desirable to adjust accessibility of generated member (if the generated is a member)
-ExtractFunctionRefactoring::ExtractFunctionRefactoring(const clang::Expr *expr,
-                                                       clang::ASTContext *astContext,
-                                                       clang::SourceManager *sourceManager)
+ExtractFunctionRefactoring::ExtractFunctionRefactoring(vector<Task> tasks)
     : Refactoring(nullptr)
+    , m_tasks(move(tasks))
+{
+}
+
+// NOTE: It may be desirable to adjust accessibility of generated member (if the generated is a member)
+ExtractFunctionRefactoring *ExtractFunctionRefactoring::make(const clang::Expr *expr,
+                                                             clang::ASTContext *astContext,
+                                                             clang::SourceManager *sourceManager)
 {
     const FunctionDecl *declContext = nullptr;
     using DynTypedNode = ast_type_traits::DynTypedNode;
@@ -108,9 +110,10 @@ ExtractFunctionRefactoring::ExtractFunctionRefactoring(const clang::Expr *expr,
             invocation = invocation.substr(0, invocation.length() - 2);
         }
         invocation += ")";
+        vector<Task> tasks;
         {
             Replacement pattern(*sourceManager, expr, "");
-            m_tasks.emplace_back(
+            tasks.emplace_back(
                 pattern.getFilePath(), pattern.getOffset(), pattern.getLength(),
                 [invocation](const string &name)
                 {
@@ -118,17 +121,28 @@ ExtractFunctionRefactoring::ExtractFunctionRefactoring(const clang::Expr *expr,
                 });
         }
         string returnType = expr->getType().getAsString();
+        const CXXMethodDecl *asMethod = llvm::dyn_cast<CXXMethodDecl>(declContext);
+        const bool wantStatic = asMethod && (!visitor.usesThis);
         for (const FunctionDecl *decl : declContext->redecls()) {
             Replacement pattern(*sourceManager, decl->getLocStart(), 0, "");
             std::function<string(const string &)> replacement;
-            // FIXME: nested name specifier!!!!
+            auto qualifier = decl->getQualifierLoc();
+            string qualifierS;
+            if (qualifier) {
+                qualifierS = codeFromASTNode(&qualifier, *sourceManager, astContext->getLangOpts());
+            }
+            auto lexicalParent = decl->getLexicalDeclContext();
+            Q_ASSERT(lexicalParent);
+            const string staticS = wantStatic && lexicalParent->isRecord() ? "static " : "";
             if (decl->isThisDeclarationADefinition()) {
                 // emit full definition
                 string exprString = codeFromASTNode(expr, *sourceManager,
                                                     astContext->getLangOpts());
-                replacement = [returnType, exprString, arguments](const string &name)
+                replacement = [staticS, returnType, qualifierS, exprString, arguments](
+                    const string &name)
                 {
-                    string result = returnType + " " + name + arguments + "\n";
+                    string result = staticS + returnType + " " + qualifierS + name;
+                    result += arguments + "\n";
                     result += "{\n";
                     result += "\treturn " + exprString + ";\n";
                     result += "}\n\n";
@@ -136,13 +150,16 @@ ExtractFunctionRefactoring::ExtractFunctionRefactoring(const clang::Expr *expr,
                 };
             } else {
                 // emit only forward declaration
-                replacement = [returnType, arguments](const string &name)
+                replacement = [staticS, returnType, qualifierS, arguments](const string &name)
                 {
-                    return returnType + " " + name + arguments + ";\n";
+                    return staticS + returnType + " " + qualifierS + name + arguments + ";\n";
                 };
             }
-            m_tasks.emplace_back(pattern.getFilePath(), pattern.getOffset(), 0, replacement);
+            tasks.emplace_back(pattern.getFilePath(), pattern.getOffset(), 0, replacement);
         }
+        return new ExtractFunctionRefactoring(move(tasks));
+    } else {
+        return nullptr;
     }
 }
 
@@ -151,16 +168,18 @@ llvm::ErrorOr<clang::tooling::Replacements> ExtractFunctionRefactoring::invoke(
 {
     // This is local refactoring, all context dependent operations done in RefactoringManager
     Q_UNUSED(ctx);
-    if (m_tasks.empty()) {
-        return cancelledResult(); // TODO: error
-    }
 
     QString funName = QInputDialog::getText(nullptr, i18n("Function Name"),
                                             i18n("Type name of new function"));
     if (funName.isEmpty()) {
         return cancelledResult();
     }
-    string name = funName.toStdString();
+    return doRefactoring(funName.toStdString());
+}
+
+
+Replacements ExtractFunctionRefactoring::doRefactoring(const std::string &name)
+{
     Replacements result;
     for (const Task &task : m_tasks) {
         result.insert(Replacement(task.filename, task.offset, task.length, task.replacement(name)));
@@ -188,6 +207,13 @@ bool UsesFromDeclContext::VisitDeclRefExpr(const DeclRefExpr *declRef)
         // infer type _now_ (not to have 'auto' type specifier in generated function declaration)
         usedDecls[declRef->getDecl()] = declRef;
     }
+    return true;
+}
+
+bool UsesFromDeclContext::VisitCXXThisExpr(const CXXThisExpr *cxxThisExpr)
+{
+    Q_UNUSED(cxxThisExpr);
+    usesThis = true;
     return true;
 }
 

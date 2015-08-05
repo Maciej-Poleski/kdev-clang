@@ -75,7 +75,7 @@ clang::tooling::RefactoringTool DocumentCache::refactoringToolForFile(
                          return llvm::sys::fs::equivalent(file, fileName);
                      }) != files.end()) {
         auto result = clang::tooling::RefactoringTool(*ctx->database, {fileName});
-        result.mapVirtualFile(fileName, contentOfOpenedFile(fileName));
+        result.mapVirtualFile(fileName, contentOfOpenedFile(fileName)); // FIXME: map everything
         return result;
     } else {
         return refactoringTool();   // a copy of

@@ -32,12 +32,19 @@ class ExtractFunctionRefactoring : public Refactoring
 {
     Q_OBJECT;
 
-public:
-    ExtractFunctionRefactoring(const clang::Expr *expr, clang::ASTContext *astContext,
-                               clang::SourceManager *sourceManager);
+    struct Task;
 
+public:
     virtual llvm::ErrorOr<clang::tooling::Replacements> invoke(RefactoringContext *ctx);
     virtual QString name() const;
+
+    clang::tooling::Replacements doRefactoring(const std::string &name);
+
+    static ExtractFunctionRefactoring* make(const clang::Expr *expr, clang::ASTContext *astContext,
+                                            clang::SourceManager *sourceManager);
+
+private:
+    ExtractFunctionRefactoring(std::vector<Task> tasks);
 
 private:
     struct Task
@@ -53,6 +60,5 @@ private:
 
     std::vector<Task> m_tasks;
 };
-
 
 #endif //KDEV_CLANG_EXTRACTFUNCTIONREFACTORING_H
