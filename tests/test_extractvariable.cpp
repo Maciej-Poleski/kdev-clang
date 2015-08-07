@@ -109,15 +109,15 @@ void TestExtractVariable::testExtractFullLocal()
             ExtractVariableRefactoring *refactoring =
                 new ExtractVariableRefactoring(op, astContext, &astContext->getSourceManager());
 
-            replacements = refactoring->doRefactoring("mySum");
+            replacements = refactoring->doRefactoring("myProduct");
         }
     );
 
     env.verifyResult(replacements, filename,
                      R"(int f()
                         {
-                            int mySum = 2*2;
-                            return 2+mySum;
+                            int myProduct = 2*2;
+                            return 2+myProduct;
                         })");
 }
 
