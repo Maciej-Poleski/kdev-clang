@@ -20,6 +20,7 @@
 */
 
 // C++
+#include <system_error>
 #include <queue>
 
 // Qt
@@ -34,7 +35,6 @@
 
 #include "extractvariablerefactoring.h"
 #include "utils.h"
-#include "error.h"
 
 using namespace std;
 using namespace clang;
@@ -84,7 +84,48 @@ ExtractVariableRefactoring::ExtractVariableRefactoring(const clang::Expr *expr,
     }
 }
 
-llvm::ErrorOr<clang::tooling::Replacements> ExtractVariableRefactoring::invoke(
+namespace
+{
+
+enum class Error
+{
+    RefactoringErrorNoParentCompoundStmt,
+};
+
+class RefactoringErrorNoParentCompoundStmt : public error_category
+{
+public:
+    virtual const char *name() const noexcept override
+    {
+        return "RefactoringErrorNoParentCompoundStmt";
+    }
+
+    virtual string message(int) const override
+    {
+        return i18n("Unable to locate parent Compound Statement"
+                        " (block <code>{ ... }</code>)").toStdString();
+    }
+};
+
+static const RefactoringErrorNoParentCompoundStmt refactoringErrorNoParentCompoundStmt{};
+
+// For ADL
+error_code make_error_code(Error)
+{
+    return error_code(0, refactoringErrorNoParentCompoundStmt);
+}
+
+}
+
+namespace std
+{
+template<>
+struct is_error_code_enum<Error> : public true_type
+{
+};
+}
+
+llvm::ErrorOr<Replacements> ExtractVariableRefactoring::invoke(
     RefactoringContext *ctx)
 {
     // This is local refactoring, all context dependent operations done in RefactoringManager
@@ -98,7 +139,12 @@ llvm::ErrorOr<clang::tooling::Replacements> ExtractVariableRefactoring::invoke(
     if (varName.isEmpty()) {
         return cancelledResult();
     }
-    string name = varName.toStdString();
+
+    return doRefactoring(varName.toStdString());
+}
+
+Replacements ExtractVariableRefactoring::doRefactoring(const std::string &name)
+{
     return Refactorings::ExtractVariable::run(m_filenameExpression, m_expression,
                                               m_filenameVariablePlacement,
                                               m_variableType, name, m_offsetExpression,
