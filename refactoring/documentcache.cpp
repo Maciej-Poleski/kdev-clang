@@ -83,7 +83,7 @@ void DocumentCache::initializeCacheInRefactoringTool(clang::tooling::Refactoring
 {
     for (auto document : ICore::self()->documentController()->openDocuments()) {
         KTextEditor::Document *textDocument = document->textDocument();
-        if (textDocument == nullptr) {
+        if (!textDocument) {
             continue;
         }
         auto obj = cpp::make_unique<std::pair<std::string, std::string>>(
