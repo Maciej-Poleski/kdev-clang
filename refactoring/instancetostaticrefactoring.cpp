@@ -82,6 +82,9 @@ llvm::ErrorOr<clang::tooling::Replacements> InstanceToStaticRefactoring::invoke(
         nameForThisPtr = QInputDialog::getText(nullptr, i18n("Name for this"),
                                                i18n("Type name for <code>this</code> pointer"),
                                                QLineEdit::Normal, "self");
+        if (nameForThisPtr.isEmpty()) {
+            return cancelledResult();
+        }
     }
     auto replacements = ctx->scheduleRefactoring(
         [this, nameForThisPtr](RefactoringTool &tool)
