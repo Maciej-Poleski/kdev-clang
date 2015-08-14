@@ -67,9 +67,9 @@ ExtractFunctionRefactoring::ExtractFunctionRefactoring(vector<Task> tasks)
 }
 
 // NOTE: It may be desirable to adjust accessibility of generated member (if the generated is a member)
-ExtractFunctionRefactoring *ExtractFunctionRefactoring::make(const clang::Expr *expr,
-                                                             clang::ASTContext *astContext,
-                                                             clang::SourceManager *sourceManager)
+ExtractFunctionRefactoring *ExtractFunctionRefactoring::create(const clang::Expr *expr,
+                                                               clang::ASTContext *astContext,
+                                                               clang::SourceManager *sourceManager)
 {
     const FunctionDecl *declContext = nullptr;
     using DynTypedNode = ast_type_traits::DynTypedNode;

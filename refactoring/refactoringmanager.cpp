@@ -495,7 +495,7 @@ void ExprRangeRefactorings::onEndOfTranslationUnit()
         m_refactorings.push_back(
             new ExtractVariableRefactoring(m_expr, m_astContext, m_sourceManager));
         ExtractFunctionRefactoring *refactoring =
-            ExtractFunctionRefactoring::make(m_expr, m_astContext, m_sourceManager);
+            ExtractFunctionRefactoring::create(m_expr, m_astContext, m_sourceManager);
         if (refactoring) {
             m_refactorings.push_back(refactoring);
         }

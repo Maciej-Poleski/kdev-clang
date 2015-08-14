@@ -40,8 +40,9 @@ public:
 
     clang::tooling::Replacements doRefactoring(const std::string &name);
 
-    static ExtractFunctionRefactoring* make(const clang::Expr *expr, clang::ASTContext *astContext,
-                                            clang::SourceManager *sourceManager);
+    static ExtractFunctionRefactoring *create(const clang::Expr *expr,
+                                              clang::ASTContext *astContext,
+                                              clang::SourceManager *sourceManager);
 
 private:
     ExtractFunctionRefactoring(std::vector<Task> tasks);

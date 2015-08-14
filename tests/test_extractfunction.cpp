@@ -55,8 +55,8 @@ void TestExtractFunction::testExtractNonMember()
         },
         [&replacements](const Expr *expr, ASTContext *astContext)
         {
-            auto refactoring = ExtractFunctionRefactoring::make(expr, astContext,
-                                                                &astContext->getSourceManager());
+            auto refactoring = ExtractFunctionRefactoring::create(expr, astContext,
+                                                                  &astContext->getSourceManager());
 
             replacements = refactoring->doRefactoring("newName");
         }
@@ -100,8 +100,8 @@ void TestExtractFunction::testExtractStaticFromInstance()
         },
         [&replacements](const Expr *expr, ASTContext *astContext)
         {
-            auto refactoring = ExtractFunctionRefactoring::make(expr, astContext,
-                                                                &astContext->getSourceManager());
+            auto refactoring = ExtractFunctionRefactoring::create(expr, astContext,
+                                                                  &astContext->getSourceManager());
 
             replacements = refactoring->doRefactoring("newName");
         }
@@ -153,8 +153,8 @@ void TestExtractFunction::testExtractInstanceFromInstance()
         },
         [&replacements](const Expr *expr, ASTContext *astContext)
         {
-            auto refactoring = ExtractFunctionRefactoring::make(expr, astContext,
-                                                                &astContext->getSourceManager());
+            auto refactoring = ExtractFunctionRefactoring::create(expr, astContext,
+                                                                  &astContext->getSourceManager());
 
             replacements = refactoring->doRefactoring("newName");
         }
