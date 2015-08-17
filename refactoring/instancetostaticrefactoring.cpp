@@ -81,7 +81,7 @@ llvm::ErrorOr<clang::tooling::Replacements> InstanceToStaticRefactoring::invoke(
     if (m_usesThisPtr) {
         nameForThisPtr = QInputDialog::getText(nullptr, i18n("Name for this"),
                                                i18n("Type name for <code>this</code> pointer"),
-                                               QLineEdit::Normal, QString::fromUtf8("self"));
+                                               QLineEdit::Normal, QStringLiteral("self"));
         if (nameForThisPtr.isEmpty()) {
             return cancelledResult();
         }

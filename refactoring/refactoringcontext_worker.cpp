@@ -37,7 +37,7 @@ RefactoringContext::Worker::Worker(
     qRegisterMetaType<std::string>();
 #endif
     moveToThread(this);
-    setObjectName(QString::fromUtf8("RefactoringContext - Worker"));
+    setObjectName(QStringLiteral("RefactoringContext - Worker"));
     connect(m_parent, &QObject::destroyed, this, [this]
     {
         m_parent = nullptr;
