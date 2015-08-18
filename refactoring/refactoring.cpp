@@ -58,13 +58,13 @@ QDialog *Refactoring::newBusyDialog()
     return result;
 }
 
-std::function<void(Replacements)> Refactoring::uiLockerCallback(QDialog *uiLocker,
-                                                                Replacements &result)
+std::function<void(llvm::ErrorOr<Replacements>)> Refactoring::uiLockerCallback(
+    QDialog *uiLocker, llvm::ErrorOr<Replacements> &result)
 {
-    return [uiLocker, &result](Replacements repl)
+    return [uiLocker, &result](llvm::ErrorOr<Replacements> repl)
     {
         // User may close dialog before end of operation
-        if(uiLocker->isVisible()) {
+        if (uiLocker->isVisible()) {
             result = std::move(repl);
             uiLocker->accept();
         }

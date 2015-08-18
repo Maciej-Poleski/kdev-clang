@@ -52,10 +52,12 @@ class Refactoring : public QObject, public RefactoringInfo
     Q_DISABLE_COPY(Refactoring);
 
     /**
-     * @c scheduleRefactoring uses busy dialog and @c uiLockerCallback
+     * @c scheduleRefactoringWithError uses busy dialog and @c uiLockerCallback
      */
-    friend clang::tooling::Replacements RefactoringContext::scheduleRefactoring(
-        std::function<clang::tooling::Replacements(clang::tooling::RefactoringTool &)>);
+    friend llvm::ErrorOr<clang::tooling::Replacements>
+        RefactoringContext::scheduleRefactoringWithError(
+        std::function<llvm::ErrorOr<clang::tooling::Replacements>(
+            clang::tooling::RefactoringTool &)>);
 
 public:
     Refactoring(QObject *parent);
@@ -95,8 +97,8 @@ protected:
      * dialog ("locking ui") and storing result of refactoring action in given
      * @c clang::tooling::Replacements object.
      */
-    static std::function<void(clang::tooling::Replacements)> uiLockerCallback(
-        QDialog *uiLocker, clang::tooling::Replacements &result);
+    static std::function<void(llvm::ErrorOr<clang::tooling::Replacements>)> uiLockerCallback(
+        QDialog *uiLocker, llvm::ErrorOr<clang::tooling::Replacements> &result);
 };
 
 

@@ -50,8 +50,8 @@ public:
     /**
      * Essence of this refactoring
      */
-    clang::tooling::Replacements doRefactoring(clang::tooling::RefactoringTool &tool,
-                                               const std::string &targetRecord);
+    llvm::ErrorOr<clang::tooling::Replacements> doRefactoring(clang::tooling::RefactoringTool &tool,
+                                                              const std::string &targetRecord);
 
 private:
     std::string m_declaration;
