@@ -32,6 +32,7 @@
 #include "redeclarationchain.h"
 #include "declarationsymbol.h"
 #include "debug.h"
+#include "usrcomparator.h"
 
 using namespace clang;
 using namespace clang::tooling;
@@ -189,14 +190,21 @@ ErrorOr<DocumentChangeSet> toDocumentChangeSet(const Replacements &replacements,
     // reasonable in some cases (renaming of a class, ...). This feature may be used outside to
     // further polish result.
     DocumentChangeSet result;
+    std::error_code lastError;
     for (const auto &r : replacements) {
         ErrorOr<DocumentChange> documentChange = toDocumentChange(r, cache, fileManager);
         if (!documentChange) {
-            return documentChange.getError();
+            lastError = documentChange.getError();
+            refactorWarning() << "Unable to translate replacement: " << r.toString();
+        } else {
+            result.addChange(documentChange.get());
         }
-        result.addChange(documentChange.get());
     }
-    return result;
+    if (!lastError) {
+        return result;
+    } else {
+        return lastError;
+    }
 }
 
 /**
@@ -321,6 +329,17 @@ LexicalLocation lexicalLocation(const Decl *decl)
 // here
 std::unique_ptr<DeclarationComparator> declarationComparator(const Decl *decl)
 {
+    // First try to use Clang USR
+    auto usrComparator = UsrComparator::create(decl);
+    if (usrComparator) {
+        return std::move(usrComparator);
+    } else {
+        refactorDebug() << "clang::index::generateUSRForDecl refused to mangle:";
+        std::string msg;
+        llvm::raw_string_ostream ostream(msg);
+        decl->dump(ostream);
+        refactorDebug() << ostream.str();
+    }
     if (const NamedDecl *namedDecl = llvm::dyn_cast<NamedDecl>(decl)) {
         auto linkage = namedDecl->getLinkageInternal();
         if (linkage == ExternalLinkage) {
@@ -419,4 +438,11 @@ std::string functionName(const std::string &functionDeclaration, const std::stri
         return fallbackName;
     }
     return functionDecl->getName();
+}
+
+std::string toString(clang::QualType type, const clang::LangOptions &langOpts)
+{
+    PrintingPolicy policy(langOpts);
+    policy.SuppressUnwrittenScope = true;
+    return type.getAsString(policy);
 }

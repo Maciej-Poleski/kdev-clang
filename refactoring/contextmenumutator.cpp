@@ -33,6 +33,7 @@
 
 // Clang
 #include <clang/Tooling/Core/Replacement.h>
+#include <clang/Basic/FileSystemOptions.h>
 
 #include "contextmenumutator.h"
 #include "refactoringmanager.h"
@@ -128,15 +129,18 @@ void ContextMenuMutator::endFillingContextMenu(const QVector<Refactoring *> &ref
                 ctx->reportError(result.getError());
                 return;
             }
-            auto changes = toDocumentChangeSet(result.get(), ctx->cache,
-                                               ctx->cache->refactoringTool().getFiles());
+            refactorDebug() << "Replacements ready:";
+            for (auto replacement : result.get()) {
+                refactorDebug() << replacement.toString();
+            }
+            // NOTE: consider removing ClangTool
+            // FIXME: FileManger for uses in RefactoringTool is read only - no need to use it below
+            FileManager fileManager(FileSystemOptions(), nullptr);
+            auto changes = toDocumentChangeSet(result.get(), ctx->cache, fileManager);
             if (!changes) {
-                refactorWarning() << "Unable to translate Replacements:";
-                for (auto replacement : result.get()) {
-                    refactorWarning() << replacement.toString();
-                }
                 ctx->reportError(changes.getError());
             } else {
+                // FIXME FIXME todoextractor.cpp target decl placed
                 changes.get().applyAllChanges();
             }
         });

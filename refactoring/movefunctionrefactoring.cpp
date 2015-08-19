@@ -58,7 +58,7 @@ private:
 
 MoveFunctionRefactoring::MoveFunctionRefactoring(const CXXMethodDecl *decl, ASTContext &astContext)
     : Refactoring(nullptr)
-    , m_declDispatcher(decl)
+    , m_declDispatcher(declarationComparator(decl))
 {
     // decl is in source RecordDecl
     decl = decl->getCanonicalDecl();
@@ -216,7 +216,7 @@ Refactoring::ResultType MoveFunctionRefactoring::doRefactoring(RefactoringTool &
     auto declRefExprMatcher = declRefExpr().bind("DeclRefExpr");
     auto memberExprMatcher = memberExpr().bind("MemberExpr");
     Replacements replacements;
-    TUDeclDispatcher declDispatcher(&m_declDispatcher);
+    TUDeclDispatcher declDispatcher(m_declDispatcher.get());
     TargetRecordComparator targetRecordComparator(targetRecord);
     TUDeclDispatcher targetRecordDispatcher(&targetRecordComparator);
     Callback callback(replacements, targetRecord, m_declaration, declDispatcher,

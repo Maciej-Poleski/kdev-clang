@@ -442,7 +442,7 @@ Refactoring *ExplorerRecursiveASTVisitor::changeSignatureRefactoring(
     const FunctionDecl *functionDecl) const
 {
     auto canonicalDecl = functionDecl->getCanonicalDecl();
-    return new ChangeSignatureRefactoring(canonicalDecl);
+    return new ChangeSignatureRefactoring(canonicalDecl, &m_ASTConsumer.m_CI.getASTContext());
 }
 
 Refactoring *ExplorerRecursiveASTVisitor::instanceToStaticRefactoring(

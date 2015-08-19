@@ -31,13 +31,12 @@ set(SRCS
     extractfunctionrefactoring.cpp
     movefunctionrefactoring.cpp
     instancetostaticrefactoring.cpp
+    usrcomparator.cpp
 )
 
 add_library(kdevclangrefactor STATIC
     ${SRCS}
 )
-
-# TODO tests
 
 target_link_libraries(kdevclangrefactor
 LINK_PRIVATE
@@ -45,7 +44,6 @@ LINK_PRIVATE
     KDev::Serialization
     KDev::Language
     KF5::TextEditor
-    kdevclangutil   # For clangDebug()
 
     # This is really nasty...
     ${CLANG_CLANG_LIB}  # For kdevclangutil
