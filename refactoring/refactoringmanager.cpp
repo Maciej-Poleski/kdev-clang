@@ -497,7 +497,7 @@ bool ExplorerRecursiveASTVisitor::VisitFunctionDecl(FunctionDecl *functionDecl)
 Refactoring *ExplorerRecursiveASTVisitor::encapsulateFieldRefactoring(
     const DeclaratorDecl *decl) const
 {
-    return new EncapsulateFieldRefactoring(decl);
+    return new EncapsulateFieldRefactoring(decl, &m_ASTConsumer.m_CI.getASTContext());
 }
 
 ExprRangeRefactorings::ExprRangeRefactorings(const string &fileName, const unsigned int rangeBegin,

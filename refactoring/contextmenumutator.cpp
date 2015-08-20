@@ -129,10 +129,6 @@ void ContextMenuMutator::endFillingContextMenu(const QVector<Refactoring *> &ref
                 ctx->reportError(result.getError());
                 return;
             }
-            refactorDebug() << "Replacements ready:";
-            for (auto replacement : result.get()) {
-                refactorDebug() << replacement.toString();
-            }
             // NOTE: consider removing ClangTool
             // FIXME: FileManger for uses in RefactoringTool is read only - no need to use it below
             FileManager fileManager(FileSystemOptions(), nullptr);
@@ -140,7 +136,6 @@ void ContextMenuMutator::endFillingContextMenu(const QVector<Refactoring *> &ref
             if (!changes) {
                 ctx->reportError(changes.getError());
             } else {
-                // FIXME FIXME todoextractor.cpp target decl placed
                 changes.get().applyAllChanges();
             }
         });

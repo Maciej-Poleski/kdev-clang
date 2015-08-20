@@ -47,6 +47,6 @@ ChangeSignatureRefactoring::InfoPack::InfoPack(const FunctionDecl *functionDecl,
     m_functionName = functionDecl->getName();
     m_returnType = toString(functionDecl->getReturnType(), astContext->getLangOpts());
     for (auto p : functionDecl->params()) {
-        m_parameters.emplace_back(p->getType().getAsString(), p->getName());
+        m_parameters.emplace_back(toString(p->getType(), astContext->getLangOpts()), p->getName());
     }
 }

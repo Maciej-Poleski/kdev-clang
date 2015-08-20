@@ -309,8 +309,8 @@ private:
     const RecordDecl *m_sourceRecordDecl;
     string m_sourceNestedNameSpecifier;
     string m_targetNestedNameSpecifier;
-    RedeclarationChain m_sourceMethodDeclChain;
-    RedeclarationChain m_sourceRecordDeclChain;
+    unique_ptr<DeclarationComparator> m_sourceMethodDeclChain;
+    unique_ptr<DeclarationComparator> m_sourceRecordDeclChain;
     TUDeclDispatcher m_sourceMethodDeclDispatcher;
     TUDeclDispatcher m_sourceRecordDeclDispatcher;
     const SourceManager &sourceManager;
@@ -361,10 +361,10 @@ TransformImplementationVisitor::TransformImplementationVisitor(
     , m_sourceRecordDecl(sourceMethodDecl->getParent())
     , m_sourceNestedNameSpecifier("::" + m_sourceRecordDecl->getQualifiedNameAsString() + "::")
     , m_targetNestedNameSpecifier(targetNestedNameSpecifier)
-    , m_sourceMethodDeclChain(sourceMethodDecl)
-    , m_sourceRecordDeclChain(m_sourceRecordDecl)
-    , m_sourceMethodDeclDispatcher(&m_sourceMethodDeclChain)
-    , m_sourceRecordDeclDispatcher(&m_sourceRecordDeclChain)
+    , m_sourceMethodDeclChain(declarationComparator(sourceMethodDecl))
+    , m_sourceRecordDeclChain(declarationComparator(m_sourceRecordDecl))
+    , m_sourceMethodDeclDispatcher(m_sourceMethodDeclChain.get())
+    , m_sourceRecordDeclDispatcher(m_sourceRecordDeclChain.get())
     , sourceManager(sourceManger)
 {
     // references to m_sourceRecordDecl->getQualifiedNameAsString() are not fully stable
@@ -415,6 +415,9 @@ void MoveFunctionRefactoring::Callback::handleTargetRecordDecl(const RecordDecl 
                                                                ASTContext *astContext)
 {
     Q_UNUSED(astContext);
+    if (!targetRecordDecl->isThisDeclarationADefinition()) {
+        return;
+    }
     string code = "\npublic:\n\t";
     code += m_declaration;
     if (!m_declarationIsADefinition) {

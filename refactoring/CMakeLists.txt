@@ -38,10 +38,14 @@ add_library(kdevclangrefactor STATIC
     ${SRCS}
 )
 
+# Prepare dependencies for Clang static libraries
+set(CURSES_NEED_NCURSES true)
+find_package(Curses REQUIRED) # Only tinfo part is required
+find_package(Threads REQUIRED)
+find_package(ZLIB REQUIRED)
+
 target_link_libraries(kdevclangrefactor
 LINK_PRIVATE
-    KDev::Util
-    KDev::Serialization
     KDev::Language
     KF5::TextEditor
 
@@ -112,11 +116,10 @@ LINK_PRIVATE
     ${CLANG_LLVMSUPPORT_LIB}
     ${CLANG_CLANGEDIT_LIB}
     ${CLANG_CLANGLEX_LIB}
-    # A few more dependencies of Clang (TODO: cleanup)
-    pthread # it must be somewhere around...
-    z       # known as zlib
+    # A few more dependencies of Clang
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${ZLIB_LIBRARIES}
     ${CMAKE_DL_LIBS}
-    ncurses # in fact tinfo (part of ncurses, can be built separately, TODO: handle that)
+    ${CURSES_LIBRARIES}
 )
 
-#set_target_properties(kdevclangrefactor PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
