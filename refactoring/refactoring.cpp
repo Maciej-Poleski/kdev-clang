@@ -40,7 +40,7 @@ Refactoring::Refactoring(QObject *parent)
 {
 }
 
-llvm::ErrorOr<Replacements> Refactoring::cancelledResult()
+Refactoring::ResultType Refactoring::cancelledResult()
 {
     // Current implementation does not use any special marker value
     return Replacements{};
@@ -58,10 +58,10 @@ QDialog *Refactoring::newBusyDialog()
     return result;
 }
 
-std::function<void(llvm::ErrorOr<Replacements>)> Refactoring::uiLockerCallback(
-    QDialog *uiLocker, llvm::ErrorOr<Replacements> &result)
+std::function<void(Refactoring::ResultType)> Refactoring::uiLockerCallback(QDialog *uiLocker,
+                                                                           ResultType &result)
 {
-    return [uiLocker, &result](llvm::ErrorOr<Replacements> repl)
+    return [uiLocker, &result](ResultType repl)
     {
         // User may close dialog before end of operation
         if (uiLocker->isVisible()) {

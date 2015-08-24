@@ -146,7 +146,7 @@ struct is_error_code_enum<Error> : public true_type
 
 }
 
-llvm::ErrorOr<clang::tooling::Replacements> MoveFunctionRefactoring::invoke(RefactoringContext *ctx)
+Refactoring::ResultType MoveFunctionRefactoring::invoke(RefactoringContext *ctx)
 {
     if (!m_isStatic) {
         return Error::NonStatic;
@@ -208,8 +208,8 @@ private:
     bool m_foundTargetRecord = false;
 };
 
-llvm::ErrorOr<Replacements> MoveFunctionRefactoring::doRefactoring(RefactoringTool &tool,
-                                                                   const string &targetRecord)
+Refactoring::ResultType MoveFunctionRefactoring::doRefactoring(RefactoringTool &tool,
+                                                               const string &targetRecord)
 {
     auto methodDeclMatcher = methodDecl().bind("CXXMethodDecl");
     auto targetRecordDeclMatcher = recordDecl().bind("RecordDecl");

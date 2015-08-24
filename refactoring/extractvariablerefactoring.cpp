@@ -128,8 +128,7 @@ struct is_error_code_enum<Error> : public true_type
 };
 }
 
-llvm::ErrorOr<Replacements> ExtractVariableRefactoring::invoke(
-    RefactoringContext *ctx)
+Refactoring::ResultType ExtractVariableRefactoring::invoke(RefactoringContext *ctx)
 {
     // This is local refactoring, all context dependent operations done in RefactoringManager
     Q_UNUSED(ctx);
